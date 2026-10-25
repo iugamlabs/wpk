@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wpk.Core/Wpk.Core.csproj" />
+    <Project Path="src/Wpk.Cli/Wpk.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wpk.Tests/Wpk.Tests.csproj" />
+  </Folder>
+</Solution>
