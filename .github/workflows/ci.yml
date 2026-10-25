@@ -1,0 +1,44 @@
+name: build-and-test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore Wpk.slnx --locked-mode
+      - name: Release tests
+        run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
+      - name: Publish x64
+        run: dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
+      - name: Check published executable and package
+        shell: pwsh
+        run: |
+          & .\artifacts\wpk-win-x64\wpk.exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'Published executable failed' }
+          Compress-Archive -Path artifacts/wpk-win-x64/* -DestinationPath artifacts/wpk-win-x64.zip
+      - name: Upload CLI
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: wpk-win-x64
+          path: artifacts/wpk-win-x64.zip
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: test-results
+          path: artifacts/test-results
