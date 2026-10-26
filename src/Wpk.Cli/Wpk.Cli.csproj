@@ -12,6 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="../Wpk.Core/Wpk.Core.csproj" />
     <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.29.380" />
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+    <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
     <None Include="../../README.md" Link="README.md" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

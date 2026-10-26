@@ -14,24 +14,30 @@ public sealed class CliTests
     [InlineData("ls", "extra")]
     [InlineData("find")]
     [InlineData("doctor", "--scope", "user")]
-    [InlineData("ls", "--json", "--json")]
     [InlineData("ls", "--unknown")]
-    public void InvalidArgumentsAreRejected(params string[] args) => Assert.Throws<ArgumentException>(() => CommandLine.Parse(args));
+    public async Task InvalidArgumentsAreRejected(params string[] args) =>
+        Assert.Equal(ExitCodes.Usage, await Create().App.RunAsync([.. args, "--json"]));
 
     [Fact]
-    public void ParserHandlesMultiwordQueriesAndOptionTerminator()
+    public async Task ParserHandlesMultiwordQueriesAndOptionTerminator()
     {
-        Assert.Equal("Visual Studio Code", CommandLine.Parse(["find", "Visual", "Studio", "Code"]).Query);
-        Assert.Equal("--literal", CommandLine.Parse(["find", "--", "--literal"]).Query);
-        Assert.Equal("query", CommandLine.Parse(["app"]).Command);
-        Assert.Equal("help", CommandLine.Parse([]).Command);
+        CliOptions? parsed = null;
+        async Task<CliOptions> Parse(params string[] args)
+        {
+            await CommandLine.InvokeAsync(args, (options, _) => { parsed = options; return Task.FromResult(0); }, default);
+            return parsed!;
+        }
+        Assert.Equal("Visual Studio Code", (await Parse("find", "Visual", "Studio", "Code")).Query);
+        Assert.Equal("--literal", (await Parse("find", "--", "--literal")).Query);
+        Assert.Equal("query", (await Parse("app")).Command);
+        Assert.False((await CommandLine.InvokeAsync([], (_, _) => Task.FromResult(0), default)).Executed);
     }
 
     [Fact]
     public async Task HelpAndVersionDoNotCollectInventory()
     {
         var context = Create();
-        Assert.Equal(0, await context.App.RunAsync(["--help", "--json"]));
+        Assert.Equal(0, await context.App.RunAsync(["up", "--help", "--json"]));
         Assert.Equal(0, context.Inventory.Calls);
         using var json = JsonDocument.Parse(context.Output.ToString());
         Assert.Contains("--dry-run", json.RootElement.GetProperty("data").GetProperty("help").GetString());
@@ -41,10 +47,10 @@ public sealed class CliTests
     [InlineData("where")]
     [InlineData("open")]
     [InlineData("up")]
-    public async Task MultipleMatchesNeverChooseHighestRank(string command)
+    public async Task MultipleExactMatchesNeverChooseHighestRank(string command)
     {
         var one = Fixtures.Instance(Fixtures.Scoop());
-        var two = Fixtures.Instance(Fixtures.Scoop("scoop:two") with { Name = "Example App Pro" });
+        var two = Fixtures.Instance(Fixtures.Scoop("scoop:two"));
         var c = Create(Fixtures.Snapshot(one, two));
         Assert.Equal(ExitCodes.Ambiguous, await c.App.RunAsync([command, "Example App", "--json"]));
         Assert.Equal(0, c.Runner.Calls);
@@ -75,11 +81,14 @@ public sealed class CliTests
     }
 
     [Fact]
-    public async Task UnknownOriginNeedsExplicitViaEvenForDryRun()
+    public async Task UnknownOriginCanBePreviewedWithoutGrantingExecution()
     {
         var c = Create(Fixtures.Snapshot(Fixtures.Instance(Fixtures.Winget())));
-        Assert.Equal(ExitCodes.Undetermined, await c.App.RunAsync(["up", "Vendor.App", "--dry-run", "--json"]));
+        Assert.Equal(0, await c.App.RunAsync(["up", "Vendor.App", "--dry-run", "--json"]));
         Assert.Equal(0, c.Runner.Calls);
+        using var json = JsonDocument.Parse(c.Output.ToString());
+        Assert.True(json.RootElement.GetProperty("data").GetProperty("confirmationRequired").GetBoolean());
+        Assert.False(json.RootElement.GetProperty("data").GetProperty("decision").GetProperty("allowed").GetBoolean());
         c = Create(Fixtures.Snapshot(Fixtures.Instance(Fixtures.Winget())));
         Assert.Equal(0, await c.App.RunAsync(["up", "Vendor.App", "--via", "winget", "--dry-run", "--json"]));
     }

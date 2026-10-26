@@ -60,9 +60,10 @@ internal sealed class FakeRunner : IProcessRunner
 {
     public int Calls { get; private set; }
     public bool StreamOutput { get; private set; }
+    public CommandSpec? LastCommand { get; private set; }
     public ProcessResult Result { get; set; } = new(0, "manager stdout", "manager stderr");
     public Task<ProcessResult> RunAsync(CommandSpec command, TimeSpan? timeout, bool streamOutput, CancellationToken cancellationToken)
-    { Calls++; StreamOutput = streamOutput; return Task.FromResult(Result); }
+    { Calls++; StreamOutput = streamOutput; LastCommand = command; return Task.FromResult(Result); }
 }
 
 internal sealed class FakeOpener : IDirectoryOpener
@@ -75,6 +76,7 @@ internal sealed class FakeAdapter(PackageManagerKind manager) : IUpgradeAdapter
 {
     public PackageManagerKind Manager => manager;
     public bool NonInteractive { get; private set; }
+    public UpgradeTarget? LastTarget { get; private set; }
     public CommandSpec BuildCommand(UpgradeTarget target, bool nonInteractive)
-    { NonInteractive = nonInteractive; return new("fake-manager.exe", ["upgrade", target.PackageId]); }
+    { NonInteractive = nonInteractive; LastTarget = target; return new("fake-manager.exe", ["upgrade", target.PackageId]); }
 }

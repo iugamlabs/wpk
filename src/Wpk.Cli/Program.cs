@@ -1,6 +1,7 @@
 using System.Text;
 using Wpk.Cli;
 using Wpk.Cli.Platform;
+using Wpk.Cli.Presentation;
 using Wpk.Core;
 
 Console.OutputEncoding = new UTF8Encoding(false);
@@ -19,8 +20,14 @@ catch (Exception e) when (e is IOException or InvalidDataException or Unauthoriz
 { sources.Add(new UnavailableSource("scoop", e.Message)); }
 var runner = new ProcessRunner();
 var doctor = new EnvironmentDoctor(runner, settings);
+var terminal = new TerminalContext(Console.Out, Console.Error,
+    terminal: !Console.IsOutputRedirected && !Console.IsErrorRedirected,
+    interactive: !Console.IsInputRedirected,
+    noColor: Environment.GetEnvironmentVariable("NO_COLOR") is not null);
 var app = new CliApplication(new InventoryService(sources), adapters, runner, new DirectoryOpener(), Console.Out, Console.Error,
-    doctor: doctor.InspectAsync, interactive: !Console.IsInputRedirected);
+    doctor: doctor.InspectAsync, interactive: terminal.Interactive,
+    renderer: new SpectreRenderer(terminal.Output, terminal.Error, terminal.Animated),
+    userInteraction: new SpectreInteraction(terminal.Error, terminal.Interactive));
 return await app.RunAsync(args, cancellation.Token);
 
 internal sealed class UnavailableSource(string name, string message) : IInventorySource
