@@ -1,14 +1,28 @@
 namespace Wpk.Core;
 
-public sealed record SearchMatch(SoftwareInstance Instance, int Score);
+public enum MatchKind { None, Fuzzy, Contains, Prefix, NormalizedExact, Exact, RecordId }
+public sealed record SearchMatch(SoftwareInstance Instance, int Score, MatchKind Kind)
+{
+    public bool IsExact => Kind >= MatchKind.NormalizedExact;
+}
 
 public static class SearchService
 {
     public static IReadOnlyList<SearchMatch> Find(IEnumerable<SoftwareInstance> instances, string query,
         bool exact = false, InstallScope? scope = null)
     {
-        return instances.Where(i => scope is null || i.Scope == scope)
-            .Select(i => new SearchMatch(i, Score(i, query, exact))).Where(m => m.Score > 0)
+        var matches = instances.Where(i => scope is null || i.Scope == scope)
+            .Select(i =>
+            {
+                var score = Score(i, query, exact);
+                var kind = score switch
+                {
+                    1000 => MatchKind.RecordId, 900 => MatchKind.Exact, 800 => MatchKind.NormalizedExact,
+                    700 => MatchKind.Prefix, 600 => MatchKind.Contains, 300 => MatchKind.Fuzzy, _ => MatchKind.None
+                };
+                return new SearchMatch(i, score, kind);
+            }).Where(m => m.Score > 0).ToArray();
+        return matches.Where(m => m.Kind != MatchKind.Fuzzy || !matches.Any(d => d.Kind > MatchKind.Fuzzy))
             .OrderByDescending(m => m.Score).ThenBy(m => m.Instance.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(m => m.Instance.Id).ToArray();
     }

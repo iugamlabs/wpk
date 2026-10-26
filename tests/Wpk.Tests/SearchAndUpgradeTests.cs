@@ -4,6 +4,17 @@ namespace Wpk.Tests;
 
 public sealed class SearchAndUpgradeTests
 {
+    [Fact]
+    public void DirectMatchesSuppressUnrelatedSubsequenceMatches()
+    {
+        var direct = Fixtures.Instance(Fixtures.Scoop() with { Name = "git", NativeId = "git" });
+        var weak = Fixtures.Instance(Fixtures.Record() with { Name = "Logi Options+", NativeId = "other" });
+        var matches = SearchService.Find([direct, weak], "git");
+        Assert.Equal("git", Assert.Single(matches).Instance.Name);
+        Assert.Equal(MatchKind.Exact, matches[0].Kind);
+        Assert.Equal(MatchKind.Fuzzy, Assert.Single(SearchService.Find([weak], "git")).Kind);
+    }
+
     [Theory]
     [InlineData("Example App", 900)]
     [InlineData("Example", 700)]
