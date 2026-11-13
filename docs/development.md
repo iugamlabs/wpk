@@ -18,16 +18,31 @@ dotnet run --project src/Wpk.Cli -- doctor
 dotnet run --project src/Wpk.Cli -- find git
 ```
 
-生成框架依赖的 x64 发布目录：
+本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）：
 
 ```powershell
-dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
-.\artifacts\wpk-win-x64\wpk.exe --help
+# 框架依赖（体积最小，需要本机安装 .NET 10 Runtime）
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-fd `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false
+
+# 自包含（内嵌运行时，无需单独安装 .NET）
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true --no-restore -o artifacts/wpk-sc `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+  -p:DebugType=none -p:DebugSymbols=false
+
+# 自包含 + ReadyToRun（启动更快，体积更大）
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true --no-restore -o artifacts/wpk-r2r `
+  -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
+
+.\artifacts\wpk-fd\wpk.exe --help
 ```
 
-将**完整发布目录**放到固定位置，再把目录加入用户 PATH。保留其中的 DLL、WinMD、JSON 等文件；不能只复制 `wpk.exe`。不需要安装后台服务。
+发布目录里可能还有 README / docs；日常使用只需把对应的 `wpk.exe` 放到 PATH 中的目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
 
-项目最低 Windows API 版本为 10.0.19041；运行系统仍需满足 .NET 10 的支持要求。当前发布、CI 和测试目标为 `win-x64`，其他架构尚未验收。
+Native AOT 目前不可用：Spectre.Console.Cli 依赖反射，JSON 序列化也未做 source generation。
+
+项目最低 Windows API 版本为 10.0.19041；框架依赖运行仍需满足 .NET 10 的支持要求。当前发布、CI 和测试目标为 `win-x64`，其他架构尚未验收。
 
 ## 测试与验收
 
@@ -35,11 +50,18 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-res
 
 ## CI 与发布
 
-Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：锁定依赖还原、Release 测试、x64 发布、已发布程序的帮助检查，并上传版本化 ZIP 与测试结果。测试结果由 `test-report` 工作流通过 `dorny/test-reporter` 写成 Check。Dependabot 每周检查 GitHub Actions 与 NuGet 更新。
+Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：锁定依赖还原、Release 测试、x64 框架依赖 single-file 发布、已发布程序的帮助检查，并上传版本化 `.exe` 与测试结果。测试结果由 `test-report` 工作流通过 `dorny/test-reporter` 写成 Check。Dependabot 每周检查 GitHub Actions 与 NuGet 更新。
 
 程序版本由 **git tag** 决定（[MinVer](https://github.com/adamralph/minver)，前缀 `v`）。`Directory.Build.props` 只保留共享编译选项，不再手写版本号。未打 tag 的提交会得到带 `alpha` 高度后缀的开发版本（例如 `0.0.0-alpha.0.12`）；打在提交上的 `v1.0.0` 会使 `wpk --version` 输出 `1.0.0`。
 
-正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试与发布，校验二进制版本与 tag 一致，生成 `wpk-{version}-win-x64.zip` 与同名 `.sha256`，并创建 GitHub Release。
+正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试，分别发布框架依赖 / 自包含 / ReadyToRun 三种 single-file 可执行文件，校验各自 `--version` 与 tag 一致，生成：
+
+- `wpk-{version}-win-x64.exe`（框架依赖）
+- `wpk-{version}-win-x64-sc.exe`（自包含）
+- `wpk-{version}-win-x64-r2r.exe`（自包含 + ReadyToRun）
+- `SHA256SUMS.txt`
+
+并创建 GitHub Release。
 
 ```powershell
 git tag v1.0.0

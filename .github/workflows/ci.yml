@@ -34,8 +34,14 @@ jobs:
       - name: Release tests
         run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
 
-      - name: Publish x64
-        run: dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
+      - name: Publish x64 framework-dependent single-file
+        run: >
+          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false
+          --no-restore -o artifacts/wpk-win-x64
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
 
       - name: Check published executable and package
         id: meta
@@ -50,19 +56,18 @@ jobs:
           }
 
           $name = "wpk-$version-win-x64"
-          $zip = "artifacts/$name.zip"
-          if (Test-Path $zip) { Remove-Item $zip }
-          Compress-Archive -Path artifacts/wpk-win-x64/* -DestinationPath $zip
+          $exeName = "$name.exe"
+          Copy-Item -Path artifacts/wpk-win-x64/wpk.exe -Destination "artifacts/$exeName" -Force
 
           "version=$version" >> $env:GITHUB_OUTPUT
           "artifact=$name" >> $env:GITHUB_OUTPUT
-          "zip=$name.zip" >> $env:GITHUB_OUTPUT
+          "exe=$exeName" >> $env:GITHUB_OUTPUT
 
       - name: Upload CLI
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ steps.meta.outputs.artifact }}
-          path: artifacts/${{ steps.meta.outputs.zip }}
+          path: artifacts/${{ steps.meta.outputs.exe }}
           retention-days: 14
 
       - name: Upload test results

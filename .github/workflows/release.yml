@@ -11,7 +11,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -40,45 +40,86 @@ jobs:
       - name: Release tests
         run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
 
-      - name: Publish x64
-        run: dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
+      - name: Publish framework-dependent single-file
+        run: >
+          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false
+          --no-restore -o artifacts/publish/fd
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
 
-      - name: Package ZIP and SHA256
+      - name: Publish self-contained single-file
+        run: >
+          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
+          --no-restore -o artifacts/publish/sc
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+
+      - name: Publish ReadyToRun self-contained single-file
+        run: >
+          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
+          --no-restore -o artifacts/publish/r2r
+          -p:PublishSingleFile=true
+          -p:PublishReadyToRun=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+
+      - name: Stage release binaries and SHA256
         id: meta
         shell: pwsh
         run: |
           $expected = '${{ steps.tag.outputs.version }}'
-          $reported = (& .\artifacts\wpk-win-x64\wpk.exe --version 2>&1 | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0) { throw "Published executable failed: $reported" }
-          if ($reported -ne $expected) {
-            throw "Published version mismatch. Expected '$expected' from tag, got: $reported"
+          $variants = @(
+            @{ Dir = 'fd';  Suffix = '' },
+            @{ Dir = 'sc';  Suffix = '-sc' },
+            @{ Dir = 'r2r'; Suffix = '-r2r' }
+          )
+
+          $staged = [System.Collections.Generic.List[string]]::new()
+          foreach ($v in $variants) {
+            $src = "artifacts/publish/$($v.Dir)/wpk.exe"
+            if (-not (Test-Path $src)) { throw "Missing published exe: $src" }
+
+            $reported = (& $src --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0) { throw "Published executable failed ($($v.Dir)): $reported" }
+            if ($reported -ne $expected) {
+              throw "Published version mismatch ($($v.Dir)). Expected '$expected' from tag, got: $reported"
+            }
+
+            $name = "wpk-$reported-win-x64$($v.Suffix).exe"
+            $dest = "artifacts/$name"
+            Copy-Item -Path $src -Destination $dest -Force
+            $staged.Add($name)
+            Write-Host "Staged $name ($([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB)"
           }
 
-          $name = "wpk-$reported-win-x64"
-          $zipName = "$name.zip"
-          $shaName = "$zipName.sha256"
-          $zip = "artifacts/$zipName"
-          $shaFile = "artifacts/$shaName"
-          if (Test-Path $zip) { Remove-Item $zip }
-          Compress-Archive -Path artifacts/wpk-win-x64/* -DestinationPath $zip
+          $sumsPath = 'artifacts/SHA256SUMS.txt'
+          $lines = foreach ($name in $staged) {
+            $hash = (Get-FileHash -Path "artifacts/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $name"
+          }
+          Set-Content -Path $sumsPath -Value ($lines -join "`n") -NoNewline -Encoding utf8
+          Write-Host "`nSHA256SUMS.txt:"
+          $lines | ForEach-Object { Write-Host $_ }
 
-          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          $line = "$hash  $zipName"
-          Set-Content -Path $shaFile -Value $line -NoNewline -Encoding utf8
-          Write-Host $line
-
-          "version=$reported" >> $env:GITHUB_OUTPUT
-          "artifact=$name" >> $env:GITHUB_OUTPUT
-          "zip=$zipName" >> $env:GITHUB_OUTPUT
-          "sha256=$shaName" >> $env:GITHUB_OUTPUT
+          "version=$expected" >> $env:GITHUB_OUTPUT
+          "artifact=wpk-$expected-win-x64" >> $env:GITHUB_OUTPUT
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ steps.meta.outputs.artifact }}
           path: |
-            artifacts/${{ steps.meta.outputs.zip }}
-            artifacts/${{ steps.meta.outputs.sha256 }}
+            artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64.exe
+            artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64-sc.exe
+            artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64-r2r.exe
+            artifacts/SHA256SUMS.txt
           retention-days: 30
 
       - name: Create GitHub Release
@@ -88,6 +129,19 @@ jobs:
           name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
+          body: |
+            ### Downloads (win-x64 single-file)
+
+            | Asset | Mode | Notes |
+            | --- | --- | --- |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64.exe` | Framework-dependent | Requires [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); smallest download |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe` | Self-contained | Bundles the .NET runtime; no separate install |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe` | Self-contained + ReadyToRun | Faster startup; larger than `-sc` |
+            | `SHA256SUMS.txt` | Checksums | SHA-256 for each `.exe` |
+
+            Native AOT is not published yet (Spectre.Console.Cli and JSON serialization are not AOT-ready).
           files: |
-            artifacts/${{ steps.meta.outputs.zip }}
-            artifacts/${{ steps.meta.outputs.sha256 }}
+            artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64.exe
+            artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe
+            artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe
+            artifacts/SHA256SUMS.txt
