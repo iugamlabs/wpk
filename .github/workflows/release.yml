@@ -14,6 +14,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v6.1.0
         with:
@@ -22,56 +24,53 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
 
       - name: Resolve version from tag
-        id: meta
+        id: tag
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
           if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
             throw "Tag must match vX.Y.Z (e.g. v1.0.0), got: $tag"
           }
-          $version = $Matches[1]
-          $name = "wpk-$version-win-x64"
-          "version=$version" >> $env:GITHUB_OUTPUT
+          "version=$($Matches[1])" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
-          "artifact=$name" >> $env:GITHUB_OUTPUT
-          "zip=$name.zip" >> $env:GITHUB_OUTPUT
-          "sha256=$name.zip.sha256" >> $env:GITHUB_OUTPUT
 
       - name: Restore locked dependencies
         run: dotnet restore Wpk.slnx --locked-mode
 
       - name: Release tests
-        run: >-
-          dotnet test Wpk.slnx -c Release --no-restore
-          -p:Version=${{ steps.meta.outputs.version }}
-          --logger "trx;LogFileName=tests.trx"
-          --results-directory artifacts/test-results
+        run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
 
       - name: Publish x64
-        run: >-
-          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore
-          -p:Version=${{ steps.meta.outputs.version }}
-          -o artifacts/wpk-win-x64
+        run: dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
 
       - name: Package ZIP and SHA256
+        id: meta
         shell: pwsh
         run: |
-          $expected = '${{ steps.meta.outputs.version }}'
+          $expected = '${{ steps.tag.outputs.version }}'
           $reported = (& .\artifacts\wpk-win-x64\wpk.exe --version 2>&1 | Out-String).Trim()
           if ($LASTEXITCODE -ne 0) { throw "Published executable failed: $reported" }
           if ($reported -ne $expected) {
-            throw "Published version mismatch. Expected '$expected', got: $reported"
+            throw "Published version mismatch. Expected '$expected' from tag, got: $reported"
           }
 
-          $zip = 'artifacts/${{ steps.meta.outputs.zip }}'
-          $shaFile = 'artifacts/${{ steps.meta.outputs.sha256 }}'
+          $name = "wpk-$reported-win-x64"
+          $zipName = "$name.zip"
+          $shaName = "$zipName.sha256"
+          $zip = "artifacts/$zipName"
+          $shaFile = "artifacts/$shaName"
           if (Test-Path $zip) { Remove-Item $zip }
           Compress-Archive -Path artifacts/wpk-win-x64/* -DestinationPath $zip
 
           $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          $line = "$hash  ${{ steps.meta.outputs.zip }}"
+          $line = "$hash  $zipName"
           Set-Content -Path $shaFile -Value $line -NoNewline -Encoding utf8
           Write-Host $line
+
+          "version=$reported" >> $env:GITHUB_OUTPUT
+          "artifact=$name" >> $env:GITHUB_OUTPUT
+          "zip=$zipName" >> $env:GITHUB_OUTPUT
+          "sha256=$shaName" >> $env:GITHUB_OUTPUT
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7.0.2
@@ -85,8 +84,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.4
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |

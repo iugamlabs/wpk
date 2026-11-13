@@ -19,24 +19,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v6.1.0
         with:
           dotnet-version: 10.0.x
           cache: true
           cache-dependency-path: '**/packages.lock.json'
-
-      - name: Resolve version
-        id: meta
-        shell: pwsh
-        run: |
-          $match = Select-String -Path Directory.Build.props -Pattern '<Version>([^<]+)</Version>'
-          if (-not $match) { throw 'Version not found in Directory.Build.props' }
-          $version = $match.Matches[0].Groups[1].Value
-          $name = "wpk-$version-win-x64"
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "artifact=$name" >> $env:GITHUB_OUTPUT
-          "zip=$name.zip" >> $env:GITHUB_OUTPUT
 
       - name: Restore locked dependencies
         run: dotnet restore Wpk.slnx --locked-mode
@@ -48,13 +38,25 @@ jobs:
         run: dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-win-x64
 
       - name: Check published executable and package
+        id: meta
         shell: pwsh
         run: |
           & .\artifacts\wpk-win-x64\wpk.exe --help
           if ($LASTEXITCODE -ne 0) { throw 'Published executable failed' }
-          $zip = 'artifacts/${{ steps.meta.outputs.zip }}'
+
+          $version = (& .\artifacts\wpk-win-x64\wpk.exe --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($version)) {
+            throw "Failed to read published version: $version"
+          }
+
+          $name = "wpk-$version-win-x64"
+          $zip = "artifacts/$name.zip"
           if (Test-Path $zip) { Remove-Item $zip }
           Compress-Archive -Path artifacts/wpk-win-x64/* -DestinationPath $zip
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact=$name" >> $env:GITHUB_OUTPUT
+          "zip=$name.zip" >> $env:GITHUB_OUTPUT
 
       - name: Upload CLI
         uses: actions/upload-artifact@v7.0.2
