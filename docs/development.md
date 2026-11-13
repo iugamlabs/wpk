@@ -37,10 +37,11 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-res
 
 Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：锁定依赖还原、Release 测试、x64 发布、已发布程序的帮助检查，并上传版本化 ZIP 与测试结果。测试结果由 `test-report` 工作流通过 `dorny/test-reporter` 写成 Check。Dependabot 每周检查 GitHub Actions 与 NuGet 更新。
 
-正式发版只接受符合 `vX.Y.Z` 的 tag（例如 `v1.0.0`）。推送该 tag 会运行 `release` 工作流：用 tag 中的版本号覆盖程序集版本，跑测试与发布，校验 `wpk --version`，生成 `wpk-{version}-win-x64.zip` 与同名 `.sha256`，并创建 GitHub Release。日常开发版本仍以 `Directory.Build.props` 中的 `<Version>` 为准，发版前建议将其与即将打的 tag 对齐。
+程序版本由 **git tag** 决定（[MinVer](https://github.com/adamralph/minver)，前缀 `v`）。`Directory.Build.props` 只保留共享编译选项，不再手写版本号。未打 tag 的提交会得到带 `alpha` 高度后缀的开发版本（例如 `0.0.0-alpha.0.12`）；打在提交上的 `v1.0.0` 会使 `wpk --version` 输出 `1.0.0`。
+
+正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试与发布，校验二进制版本与 tag 一致，生成 `wpk-{version}-win-x64.zip` 与同名 `.sha256`，并创建 GitHub Release。
 
 ```powershell
-# 发版示例：先把 Directory.Build.props 的 Version 改成 1.0.0，再打 tag
 git tag v1.0.0
 git push origin v1.0.0
 ```
