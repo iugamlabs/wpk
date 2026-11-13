@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -33,6 +34,15 @@ public static class CommandLine
 
     public static bool HasFlag(string[] args, string flag) => args.TakeWhile(a => a != "--").Contains(flag);
 
+    // Spectre.Console.Cli resolves commands by reflection; keep public constructors for trimmed publishes.
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(QueryCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(FindCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(WhereCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(OpenCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ListCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(UpgradeCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(DoctorCommand))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(CommandDispatch))]
     public static async Task<CommandRunResult> InvokeAsync(string[] args,
         Func<CliOptions, CancellationToken, Task<int>> execute, CancellationToken cancellationToken)
     {
@@ -195,6 +205,8 @@ internal sealed class CommandRegistrar : ITypeRegistrar, ITypeResolver
         if (!factories.TryGetValue(service, out var values)) factories[service] = values = [];
         values.Add(factory);
     }
+    // ITypeRegistrar.Register has no DynamicallyAccessedMembers; constructors are rooted via DynamicDependency on InvokeAsync.
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Command implementations are rooted with DynamicDependency(PublicConstructors) on InvokeAsync.")]
     public void Register(Type service, Type implementation) => Add(service, () =>
     {
         var constructor = implementation.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();

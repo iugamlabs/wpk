@@ -18,29 +18,31 @@ dotnet run --project src/Wpk.Cli -- doctor
 dotnet run --project src/Wpk.Cli -- find git
 ```
 
-本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）。`PublishSingleFile` / 自包含需要额外还原 win-x64 runtime pack，因此 publish 不要加 `--no-restore`：
+本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）。`PublishSingleFile` / 自包含需要额外还原 win-x64 runtime pack，因此 publish 不要加 `--no-restore`。`PublishTrimmed` 仅自包含可用（框架依赖会报 `NETSDK1102`）：
 
 ```powershell
-# 框架依赖（体积最小，需要本机安装 .NET 10 Runtime）
+# 框架依赖（需要本机安装 .NET 10 Runtime；不能 IL 裁剪，体积主要来自 Windows.SDK.NET 投影）
 dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false -o artifacts/wpk-fd `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false
 
-# 自包含（内嵌运行时，无需单独安装 .NET）
+# 自包含 + IL 裁剪 + 单文件压缩（正式 -sc）
 dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifacts/wpk-sc `
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+  -p:PublishSingleFile=true -p:PublishTrimmed=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
   -p:DebugType=none -p:DebugSymbols=false
 
-# 自包含 + ReadyToRun（启动更快，体积更大）
+# 自包含 + 裁剪 + ReadyToRun（启动更快，体积大于 -sc）
 dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifacts/wpk-r2r `
-  -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
+  -p:PublishSingleFile=true -p:PublishTrimmed=true -p:PublishReadyToRun=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+  -p:DebugType=none -p:DebugSymbols=false
 
 .\artifacts\wpk-fd\wpk.exe --help
 ```
 
 发布目录里可能还有 README / docs；日常使用只需把对应的 `wpk.exe` 放到 PATH 中的目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
 
-Native AOT 目前不可用：Spectre.Console.Cli 依赖反射，JSON 序列化也未做 source generation。
+Native AOT 目前不可用：Spectre.Console.Cli 依赖反射。`--json` 已改用 `System.Text.Json` source generation，便于裁剪发布。
 
 项目最低 Windows API 版本为 10.0.19041；框架依赖运行仍需满足 .NET 10 的支持要求。当前发布、CI 和测试目标为 `win-x64`，其他架构尚未验收。
 
@@ -54,11 +56,11 @@ Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：�
 
 程序版本由 **git tag** 决定（[MinVer](https://github.com/adamralph/minver)，前缀 `v`）。`Directory.Build.props` 只保留共享编译选项，不再手写版本号。未打 tag 的提交会得到带 `alpha` 高度后缀的开发版本（例如 `0.0.0-alpha.0.12`）；打在提交上的 `v1.0.0` 会使 `wpk --version` 输出 `1.0.0`。
 
-正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试，分别发布框架依赖 / 自包含 / ReadyToRun 三种 single-file 可执行文件，校验各自 `--version` 与 tag 一致，生成：
+正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试，分别发布框架依赖 / 自包含（IL 裁剪）/ ReadyToRun（IL 裁剪）三种 single-file 可执行文件，校验各自 `--version` 与 tag 一致，生成：
 
-- `wpk-{version}-win-x64.exe`（框架依赖）
-- `wpk-{version}-win-x64-sc.exe`（自包含）
-- `wpk-{version}-win-x64-r2r.exe`（自包含 + ReadyToRun）
+- `wpk-{version}-win-x64.exe`（框架依赖；不能 `PublishTrimmed`）
+- `wpk-{version}-win-x64-sc.exe`（自包含 + 裁剪 + 单文件压缩）
+- `wpk-{version}-win-x64-r2r.exe`（自包含 + 裁剪 + ReadyToRun）
 - `SHA256SUMS.txt`
 
 并创建 GitHub Release。

@@ -51,11 +51,13 @@ jobs:
           -p:DebugType=none
           -p:DebugSymbols=false
 
+      # PublishTrimmed is self-contained-only (NETSDK1102 for FD). TrimMode=partial is set in Wpk.Cli.csproj.
       - name: Publish self-contained single-file
         run: >
           dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
           -o artifacts/publish/sc
           -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
           -p:DebugType=none
@@ -66,6 +68,7 @@ jobs:
           dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
           -o artifacts/publish/r2r
           -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
           -p:PublishReadyToRun=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
@@ -136,9 +139,9 @@ jobs:
 
             | Asset | Mode | Notes |
             | --- | --- | --- |
-            | `wpk-${{ steps.tag.outputs.version }}-win-x64.exe` | Framework-dependent | Requires [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); smallest download |
-            | `wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe` | Self-contained | Bundles the .NET runtime; no separate install |
-            | `wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe` | Self-contained + ReadyToRun | Faster startup; larger than `-sc` |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64.exe` | Framework-dependent | Requires [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); no IL trim (SDK limit) |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the .NET runtime; single-file compression |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
             | `SHA256SUMS.txt` | Checksums | SHA-256 for each `.exe` |
 
             Native AOT is not published yet (Spectre.Console.Cli and JSON serialization are not AOT-ready).

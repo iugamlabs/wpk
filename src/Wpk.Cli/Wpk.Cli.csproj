@@ -9,6 +9,11 @@
     <SelfContained>false</SelfContained>
     <MicrosoftManagementDeployment-FactoryLinkage>static</MicrosoftManagementDeployment-FactoryLinkage>
   </PropertyGroup>
+  <!-- Self-contained publish sets PublishTrimmed; third-party WinRT/Spectre assemblies are not trim-clean (IL2104). -->
+  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true'">
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <TrimMode>partial</TrimMode>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Wpk.Core/Wpk.Core.csproj" />
     <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.29.380" />

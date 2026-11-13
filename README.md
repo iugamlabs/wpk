@@ -23,9 +23,9 @@ Download a **win-x64 single-file** build from [GitHub Releases](https://github.c
 
 | Asset | Mode | Notes |
 | --- | --- | --- |
-| `wpk-{version}-win-x64.exe` | Framework-dependent | Needs [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); smallest download |
-| `wpk-{version}-win-x64-sc.exe` | Self-contained | Bundles the runtime; no separate .NET install |
-| `wpk-{version}-win-x64-r2r.exe` | Self-contained + ReadyToRun | Faster startup; larger than `-sc` |
+| `wpk-{version}-win-x64.exe` | Framework-dependent | Needs [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); IL trim not available for FD |
+| `wpk-{version}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the runtime; usually the smallest download |
+| `wpk-{version}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
 
 Rename the file to `wpk.exe`, place it on your `PATH`, and verify with `wpk --version`. Checksums are in `SHA256SUMS.txt`.
 

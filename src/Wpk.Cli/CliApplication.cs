@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Spectre.Console.Cli;
 using Wpk.Cli.Platform;
 using Wpk.Cli.Presentation;
@@ -44,7 +43,9 @@ public sealed class CliApplication
             if (result.ExitCode != 0)
                 return Emit(options, ExitCodes.Usage, null,
                     [new("cli", "invalidArguments", result.Text, DiagnosticSeverity.Error)], false);
-            return Emit(options, 0, result.Version ? new { version = CommandLine.Version } : (object)new { help = result.Text },
+            return Emit(options, 0, result.Version
+                    ? new VersionPayload(CommandLine.Version)
+                    : (object)new HelpPayload(result.Text),
                 [], false, () => output.Write(result.Text));
         }
         catch (OperationCanceledException)
@@ -121,10 +122,10 @@ public sealed class CliApplication
                 snapshot.Diagnostics.Append(new Diagnostic("cli", "directoryUnknown", "安装目录未知或存在冲突，无法定位。", DiagnosticSeverity.Error)).ToArray(), snapshot.Partial);
         var directory = paths.FirstOrDefault(r => r.Source == SourceKind.Scoop)?.DirectoryPath ?? paths[0].DirectoryPath!;
         if (!directoryExists(directory!))
-            return Emit(options, ExitCodes.Unavailable, new { instanceId = instance.Id, directory },
+            return Emit(options, ExitCodes.Unavailable, new DirectoryPayload(instance.Id, directory!),
                 snapshot.Diagnostics.Append(new Diagnostic("cli", "directoryMissing", "记录的安装目录已不存在。", DiagnosticSeverity.Error)).ToArray(), snapshot.Partial);
         if (options.Command == "open") opener.Open(directory!);
-        return Emit(options, 0, new { instanceId = instance.Id, directory, opened = options.Command == "open" },
+        return Emit(options, 0, new DirectoryPayload(instance.Id, directory!, options.Command == "open"),
             snapshot.Diagnostics, snapshot.Partial, () =>
             {
                 if (options.Command == "where") output.WriteLine(directory);
@@ -160,7 +161,7 @@ public sealed class CliApplication
         var preview = new UpgradePreview(instance, previewDecision, command, confirmationRequired,
             instance.Owners.Count == 0, options.DryRun);
         if (options.DryRun)
-            return Emit(options, 0, new { instanceId = instance.Id, decision = previewDecision, command, dryRun = true, confirmationRequired },
+            return Emit(options, 0, new UpgradePayload(instance.Id, previewDecision, command, true, confirmationRequired),
                 snapshot.Diagnostics, snapshot.Partial, () => renderer.Upgrade(preview));
         if (confirmationRequired)
         {
@@ -185,7 +186,7 @@ public sealed class CliApplication
         var diagnostics = fresh.Diagnostics.ToList();
         if (exit != 0) diagnostics.Add(new("process", result.Cancelled ? "cancelled" : "externalFailure",
             $"管理器未成功完成；原始退出码：{result.ExitCode?.ToString() ?? "未知"}。", DiagnosticSeverity.Error));
-        return Emit(options, exit, new { instanceId = instance.Id, decision = rechecked, command, dryRun = false, process = result },
+        return Emit(options, exit, new UpgradePayload(instance.Id, rechecked, command, false, Process: result),
             diagnostics, fresh.Partial, () => renderer.Message(exit == 0 ? "管理器执行完成。" : "请检查管理器输出。"));
     }
 
@@ -203,7 +204,7 @@ public sealed class CliApplication
     }
 
     private int Denied(UpgradeDecision decision, SoftwareInstance instance, InventorySnapshot snapshot, CliOptions options) =>
-        Emit(options, ExitCodes.Undetermined, new { instanceId = instance.Id, decision },
+        Emit(options, ExitCodes.Undetermined, new DeniedPayload(instance.Id, decision),
             snapshot.Diagnostics.Append(new Diagnostic("upgrade", decision.Code, decision.Reason, DiagnosticSeverity.Error)).ToArray(), snapshot.Partial);
 
     private int Cancelled(CliOptions options, InventorySnapshot snapshot) =>
@@ -212,7 +213,7 @@ public sealed class CliApplication
 
     private int Emit(CliOptions options, int exit, object? data, IReadOnlyList<Diagnostic> diagnostics, bool partial, Action? human = null)
     {
-        if (options.Json) output.WriteLine(JsonSerializer.Serialize(new ResponseEnvelope(1, data, diagnostics, partial, exit), Output.JsonOptions));
+        if (options.Json) output.WriteLine(Output.SerializeEnvelope(exit, data, diagnostics, partial));
         else
         {
             human?.Invoke();

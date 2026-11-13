@@ -23,9 +23,9 @@
 
 | 产物 | 模式 | 说明 |
 | --- | --- | --- |
-| `wpk-{version}-win-x64.exe` | 框架依赖 | 需要本机 [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)；体积最小 |
-| `wpk-{version}-win-x64-sc.exe` | 自包含 | 内嵌运行时，无需单独安装 .NET |
-| `wpk-{version}-win-x64-r2r.exe` | 自包含 + ReadyToRun | 启动更快，体积大于 `-sc` |
+| `wpk-{version}-win-x64.exe` | 框架依赖 | 需要本机 [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)；FD 无法 IL 裁剪 |
+| `wpk-{version}-win-x64-sc.exe` | 自包含 + 裁剪 | 内嵌运行时；通常下载体积最小 |
+| `wpk-{version}-win-x64-r2r.exe` | 自包含 + 裁剪 + ReadyToRun | 启动更快，体积大于 `-sc` |
 
 将文件重命名为 `wpk.exe`，放到 `PATH` 中的目录，用 `wpk --version` 验证。校验和见 `SHA256SUMS.txt`。
 
