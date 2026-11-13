@@ -33,4 +33,16 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-res
 
 自动化测试覆盖新旧 Scoop 元数据、损坏记录、活动版本、多来源去重与误合并、搜索和歧义、升级别名与完整包 ID、确认/拒绝/取消及再次验证、JSON、窄屏和中文、颜色降级、字面量进程参数、大量 stdout/stderr、超时和取消。界面测试使用 Spectre 测试控制台；升级及目录打开使用替身；进程测试只运行临时 PowerShell 辅助脚本。
 
-Windows CI 执行锁定依赖还原、Release 测试、x64 发布和已发布程序的帮助检查，并上传 ZIP 与测试报告。真实软件升级、资源管理器打开和其他 Windows/WinGet 版本应在专门测试环境验收。
+## CI 与发布
+
+Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：锁定依赖还原、Release 测试、x64 发布、已发布程序的帮助检查，并上传版本化 ZIP 与测试结果。测试结果由 `test-report` 工作流通过 `dorny/test-reporter` 写成 Check。Dependabot 每周检查 GitHub Actions 与 NuGet 更新。
+
+正式发版只接受符合 `vX.Y.Z` 的 tag（例如 `v1.0.0`）。推送该 tag 会运行 `release` 工作流：用 tag 中的版本号覆盖程序集版本，跑测试与发布，校验 `wpk --version`，生成 `wpk-{version}-win-x64.zip` 与同名 `.sha256`，并创建 GitHub Release。日常开发版本仍以 `Directory.Build.props` 中的 `<Version>` 为准，发版前建议将其与即将打的 tag 对齐。
+
+```powershell
+# 发版示例：先把 Directory.Build.props 的 Version 改成 1.0.0，再打 tag
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+真实软件升级、资源管理器打开和其他 Windows/WinGet 版本应在专门测试环境验收。
