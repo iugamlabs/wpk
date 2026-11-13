@@ -34,10 +34,12 @@ jobs:
       - name: Release tests
         run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
 
+      # Publish must restore: PublishSingleFile needs the win-x64 runtime pack
+      # (NETSDK1112 if solution restore alone is reused with --no-restore).
       - name: Publish x64 framework-dependent single-file
         run: >
           dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false
-          --no-restore -o artifacts/wpk-win-x64
+          -o artifacts/wpk-win-x64
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:DebugType=none

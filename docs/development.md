@@ -18,20 +18,20 @@ dotnet run --project src/Wpk.Cli -- doctor
 dotnet run --project src/Wpk.Cli -- find git
 ```
 
-本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）：
+本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）。`PublishSingleFile` / 自包含需要额外还原 win-x64 runtime pack，因此 publish 不要加 `--no-restore`：
 
 ```powershell
 # 框架依赖（体积最小，需要本机安装 .NET 10 Runtime）
-dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false --no-restore -o artifacts/wpk-fd `
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained false -o artifacts/wpk-fd `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false
 
 # 自包含（内嵌运行时，无需单独安装 .NET）
-dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true --no-restore -o artifacts/wpk-sc `
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifacts/wpk-sc `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
   -p:DebugType=none -p:DebugSymbols=false
 
 # 自包含 + ReadyToRun（启动更快，体积更大）
-dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true --no-restore -o artifacts/wpk-r2r `
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifacts/wpk-r2r `
   -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true `
   -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false
 
