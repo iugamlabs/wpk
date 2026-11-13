@@ -12,6 +12,12 @@
           "Microsoft.TestPlatform.TestHost": "17.14.1"
         }
       },
+      "MinVer": {
+        "type": "Direct",
+        "requested": "[8.0.0, )",
+        "resolved": "8.0.0",
+        "contentHash": "AJy/KVjXgUbgjf6HiI8wAk4DSSq0SCmvXQF8aU6IB+pnIQq+YJvofvMczug2hqO8yEvnQY557ryew66KPpyCsA=="
+      },
       "Spectre.Console.Testing": {
         "type": "Direct",
         "requested": "[0.57.2, )",
@@ -134,7 +140,7 @@
           "Microsoft.WindowsPackageManager.ComInterop": "[1.29.380, )",
           "Spectre.Console": "[0.57.2, )",
           "Spectre.Console.Cli": "[0.57.2, )",
-          "Wpk.Core": "[0.2.0, )"
+          "Wpk.Core": "[1.0.0, )"
         }
       },
       "wpk.core": {

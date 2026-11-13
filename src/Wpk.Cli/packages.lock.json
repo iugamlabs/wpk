@@ -8,6 +8,12 @@
         "resolved": "1.29.380",
         "contentHash": "O2KWbqShmCi9KZgmweDo2DxPFDskM8IDtXkhnVt1d/lNL22eBqPAM69YobFLbMUB+cdTQrApQJx+qhQRXkiltw=="
       },
+      "MinVer": {
+        "type": "Direct",
+        "requested": "[8.0.0, )",
+        "resolved": "8.0.0",
+        "contentHash": "AJy/KVjXgUbgjf6HiI8wAk4DSSq0SCmvXQF8aU6IB+pnIQq+YJvofvMczug2hqO8yEvnQY557ryew66KPpyCsA=="
+      },
       "Spectre.Console": {
         "type": "Direct",
         "requested": "[0.57.2, )",
