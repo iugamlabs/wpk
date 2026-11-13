@@ -46,6 +46,20 @@ internal sealed class TempDirectory : IDisposable
     }
 }
 
+internal sealed class EnvVarScope : IDisposable
+{
+    private readonly (string Key, string? Previous)[] _previous;
+    public EnvVarScope(params (string Key, string? Value)[] values)
+    {
+        _previous = values.Select(v => (v.Key, Environment.GetEnvironmentVariable(v.Key))).ToArray();
+        foreach (var (key, value) in values) Environment.SetEnvironmentVariable(key, value);
+    }
+    public void Dispose()
+    {
+        foreach (var (key, previous) in _previous) Environment.SetEnvironmentVariable(key, previous);
+    }
+}
+
 internal sealed class FakeInventory(params InventorySnapshot[] snapshots) : IInventoryService
 {
     public int Calls { get; private set; }

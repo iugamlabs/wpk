@@ -40,13 +40,26 @@ public sealed class TerminalContext
         Animated = terminal && Error.Profile.Capabilities.Ansi;
     }
 
-    private static IAnsiConsole Create(TextWriter writer, bool terminal, bool interactive, bool noColor) =>
-        AnsiConsole.Create(new AnsiConsoleSettings
+    private static IAnsiConsole Create(TextWriter writer, bool terminal, bool interactive, bool noColor)
+    {
+        // Spectre may still report Capabilities.Ansi=true under CI/TERM even when AnsiSupport.No is set.
+        // Pin capabilities so NO_COLOR and redirected writers never advertise or emit ANSI.
+        var disableAnsi = noColor || !terminal;
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
         {
-            Out = new AnsiConsoleOutput(writer), Ansi = terminal && !noColor ? AnsiSupport.Detect : AnsiSupport.No,
-            ColorSystem = noColor || !terminal ? ColorSystemSupport.NoColors : ColorSystemSupport.Detect,
+            Out = new AnsiConsoleOutput(writer),
+            Ansi = disableAnsi ? AnsiSupport.No : AnsiSupport.Detect,
+            ColorSystem = disableAnsi ? ColorSystemSupport.NoColors : ColorSystemSupport.Detect,
             Interactive = interactive ? InteractionSupport.Yes : InteractionSupport.No
         });
+        if (disableAnsi)
+        {
+            console.Profile.Capabilities.Ansi = false;
+            console.Profile.Capabilities.ColorSystem = ColorSystem.NoColors;
+        }
+
+        return console;
+    }
 }
 
 public sealed class SpectreRenderer(IAnsiConsole console, IAnsiConsole error, bool animated = false) : ICliRenderer

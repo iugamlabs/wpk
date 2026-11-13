@@ -75,6 +75,8 @@ public sealed class PresentationTests
     [Fact]
     public void NoColorAndRedirectedContextsNeverEmitAnsi()
     {
+        // Spectre treats CI/TERM as ANSI-capable even with AnsiSupport.No; pin env like Actions.
+        using var ci = new EnvVarScope(("CI", "true"), ("GITHUB_ACTIONS", "true"), ("TERM", "xterm"), ("FORCE_COLOR", "1"));
         foreach (var terminal in new[] { false, true })
         {
             var output = new StringWriter(); var error = new StringWriter();
