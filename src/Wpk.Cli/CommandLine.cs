@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Cli.Help;
@@ -14,7 +15,20 @@ public sealed record CommandRunResult(int ExitCode, string Text, bool Executed, 
 /// <summary>The only compatibility routing is the implicit query; Spectre owns parsing and validation.</summary>
 public static class CommandLine
 {
-    public static string Version { get; } = typeof(CommandLine).Assembly.GetName().Version!.ToString(3);
+    public static string Version { get; } = ReadVersion();
+
+    private static string ReadVersion()
+    {
+        var informational = typeof(CommandLine).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            var plus = informational.IndexOf('+');
+            return plus >= 0 ? informational[..plus] : informational;
+        }
+
+        return typeof(CommandLine).Assembly.GetName().Version!.ToString(3);
+    }
     private static readonly HashSet<string> Commands = ["query", "find", "where", "open", "ls", "up", "update", "upgrade", "doctor"];
 
     public static bool HasFlag(string[] args, string flag) => args.TakeWhile(a => a != "--").Contains(flag);

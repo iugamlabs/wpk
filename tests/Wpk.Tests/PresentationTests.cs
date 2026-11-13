@@ -180,7 +180,7 @@ public sealed class PresentationTests
         var app = new CliApplication(new FakeInventory(Fixtures.Snapshot()), [], new FakeRunner(), new FakeOpener(), output, new StringWriter());
         Assert.Equal(0, await app.RunAsync([flag, "--json"]));
         using var json = JsonDocument.Parse(output.ToString());
-        Assert.Equal("0.2.0", json.RootElement.GetProperty("data").GetProperty("version").GetString());
+        Assert.Equal(CommandLine.Version, json.RootElement.GetProperty("data").GetProperty("version").GetString());
     }
 
     private static UpgradePreview Preview()
