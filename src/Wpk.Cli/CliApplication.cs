@@ -1,4 +1,4 @@
-using Spectre.Console.Cli;
+using ConsoleAppFramework;
 using Wpk.Cli.Platform;
 using Wpk.Cli.Presentation;
 using Wpk.Core;
@@ -34,11 +34,29 @@ public sealed class CliApplication
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
         var options = new CliOptions("query", null, CommandLine.HasFlag(args, "--json"), false, null, null, false,
-            CommandLine.HasFlag(args, "--verbose"));
+            CommandLine.HasFlag(args, "--verbose") || CommandLine.HasFlag(args, "-v"));
         try
         {
-            var result = await CommandLine.InvokeAsync(args, (parsed, token) =>
-            { options = parsed; return ExecuteAsync(parsed, token); }, cancellationToken);
+            var result = await CommandLine.InvokeAsync(args, async (parsed, token) =>
+            {
+                options = parsed;
+                try { return await ExecuteAsync(parsed, token); }
+                catch (OperationCanceledException)
+                {
+                    return Emit(options, ExitCodes.Cancelled, null,
+                        [new("cli", "cancelled", "操作已取消；未启动的升级不会执行，已启动的安装程序可能已产生变更。", DiagnosticSeverity.Error)], false);
+                }
+                catch (Exception e) when (e is ArgumentParseFailedException or ArgumentException)
+                {
+                    return Emit(options, ExitCodes.Usage, null,
+                        [new("cli", "invalidArguments", e.Message, DiagnosticSeverity.Error)], false);
+                }
+                catch (Exception e)
+                {
+                    return Emit(options, ExitCodes.Unavailable, null,
+                        [new("cli", "operationFailed", e.Message, DiagnosticSeverity.Error)], false);
+                }
+            }, cancellationToken);
             if (result.Executed) return result.ExitCode;
             if (result.ExitCode != 0)
                 return Emit(options, ExitCodes.Usage, null,
@@ -49,11 +67,20 @@ public sealed class CliApplication
                 [], false, () => output.Write(result.Text));
         }
         catch (OperationCanceledException)
-        { return Emit(options, ExitCodes.Cancelled, null, [new("cli", "cancelled", "操作已取消；未启动的升级不会执行，已启动的安装程序可能已产生变更。", DiagnosticSeverity.Error)], false); }
-        catch (Exception e) when (e is CommandAppException or ArgumentException)
-        { return Emit(options, ExitCodes.Usage, null, [new("cli", "invalidArguments", e.Message, DiagnosticSeverity.Error)], false); }
+        {
+            return Emit(options, ExitCodes.Cancelled, null,
+                [new("cli", "cancelled", "操作已取消；未启动的升级不会执行，已启动的安装程序可能已产生变更。", DiagnosticSeverity.Error)], false);
+        }
+        catch (Exception e) when (e is ArgumentParseFailedException or ArgumentException)
+        {
+            return Emit(options, ExitCodes.Usage, null,
+                [new("cli", "invalidArguments", e.Message, DiagnosticSeverity.Error)], false);
+        }
         catch (Exception e)
-        { return Emit(options, ExitCodes.Unavailable, null, [new("cli", "operationFailed", e.Message, DiagnosticSeverity.Error)], false); }
+        {
+            return Emit(options, ExitCodes.Unavailable, null,
+                [new("cli", "operationFailed", e.Message, DiagnosticSeverity.Error)], false);
+        }
     }
 
     private bool CanInteract(CliOptions options) => !options.Json && interactive && interaction?.IsInteractive == true;
