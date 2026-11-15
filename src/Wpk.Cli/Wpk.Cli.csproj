@@ -8,17 +8,22 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <MicrosoftManagementDeployment-FactoryLinkage>static</MicrosoftManagementDeployment-FactoryLinkage>
+    <!-- CAF5 + STJ source-gen are AOT-oriented; Spectre.Console / WinGet ComInterop may still emit link-time trim noise. -->
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
-  <!-- Self-contained publish sets PublishTrimmed; third-party WinRT/Spectre assemblies are not trim-clean (IL2104). -->
-  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true'">
+  <!-- Self-contained / AOT publish sets PublishTrimmed; third-party WinRT/Spectre assemblies are not fully trim-clean (IL2104). -->
+  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true' or '$(PublishAot)' == 'true'">
     <NoWarn>$(NoWarn);IL2104</NoWarn>
     <TrimMode>partial</TrimMode>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="ConsoleAppFramework" Version="5.8.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <ProjectReference Include="../Wpk.Core/Wpk.Core.csproj" />
     <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.29.380" />
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
-    <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
     <None Include="../../README.md" Link="README.md" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../README.zh-CN.md" Link="README.zh-CN.md" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../docs/**/*.md" Link="docs/%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />

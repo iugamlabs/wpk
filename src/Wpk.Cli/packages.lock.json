@@ -2,6 +2,18 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows10.0.26100": {
+      "ConsoleAppFramework": {
+        "type": "Direct",
+        "requested": "[5.8.0, )",
+        "resolved": "5.8.0",
+        "contentHash": "3N4YAAIC3MYJ9xkI392ajfb77cd9tBW2nWPdaAiojdK3CmBdZuUOCEgWgx8QyiHwDNqkPCtek+cZOmonucge3w=="
+      },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "YlTamXppEQls6DYWt7RdUuwWDb0lyw/vXCaGeQpLCpsLmfwGuCkOz/vIGgMTV7ECsJcavkCOkxZXv9s8rdAHkQ=="
+      },
       "Microsoft.WindowsPackageManager.ComInterop": {
         "type": "Direct",
         "requested": "[1.29.380, )",
@@ -21,15 +33,6 @@
         "contentHash": "wzsB+P9i6F9G+cFOJxRotCiQWNSzZVAMxi8YMiHlGXXU1JLMXGp7zSSqBMmROZS2bzpK5jk+Saa7Evp8HwqhKg==",
         "dependencies": {
           "Spectre.Console.Ansi": "0.57.2"
-        }
-      },
-      "Spectre.Console.Cli": {
-        "type": "Direct",
-        "requested": "[0.57.2, )",
-        "resolved": "0.57.2",
-        "contentHash": "EAiwpJXAAvhyyzH6hljVo7z19ahG7WM+zViKEHtUagyPymYfJrsainXDOHzUakBHj6VYEpuaqPAShgqvs1N9aQ==",
-        "dependencies": {
-          "Spectre.Console": "0.57.2"
         }
       },
       "Spectre.Console.Ansi": {
