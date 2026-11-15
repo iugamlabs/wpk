@@ -18,7 +18,7 @@ dotnet run --project src/Wpk.Cli -- doctor
 dotnet run --project src/Wpk.Cli -- find git
 ```
 
-本地可按三种模式发布 **single-file** `wpk.exe`（正式发版与此一致）。`PublishSingleFile` / 自包含需要额外还原 win-x64 runtime pack，因此 publish 不要加 `--no-restore`。`PublishTrimmed` 仅自包含可用（框架依赖会报 `NETSDK1102`）：
+本地可按多种模式发布 `wpk.exe`。`PublishSingleFile` / 自包含 / AOT 需要额外还原 win-x64 runtime pack，因此 publish 不要加 `--no-restore`。`PublishTrimmed` 仅自包含或 AOT 可用（框架依赖会报 `NETSDK1102`）。
 
 ```powershell
 # 框架依赖（需要本机安装 .NET 10 Runtime；不能 IL 裁剪，体积主要来自 Windows.SDK.NET 投影）
@@ -37,12 +37,16 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifa
   -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
   -p:DebugType=none -p:DebugSymbols=false
 
+# Native AOT（需本机安装 Visual Studio「使用 C++ 的桌面开发」工作负载 / MSVC 链接器）
+dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifacts/wpk-aot `
+  -p:PublishAot=true -p:DebugType=none -p:DebugSymbols=false
+
 .\artifacts\wpk-fd\wpk.exe --help
 ```
 
 发布目录里可能还有 README / docs；日常使用只需把对应的 `wpk.exe` 放到 PATH 中的目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
 
-Native AOT 目前不可用：Spectre.Console.Cli 依赖反射。`--json` 已改用 `System.Text.Json` source generation，便于裁剪发布。
+CLI 栈：ConsoleAppFramework 5（源生成解析）+ Spectre.Console（人类可读）+ `System.Text.Json` source generation（`--json`）。`Wpk.Core` / `Wpk.Cli` 已标 `IsAotCompatible`；完整 `PublishAot` 依赖 MSVC 平台链接器。Spectre.Console 与 WinGet ComInterop 在链接阶段仍可能出现 IL2104 类告警（已对 trimmed/AOT 发布抑制），运行时行为以本机 AOT 冒烟（`--help` / `doctor --json`）为准。正式 tag 发版产物目前仍是 single-file，AOT 产物可先本地验证后再接入流水线。
 
 项目最低 Windows API 版本为 10.0.19041；框架依赖运行仍需满足 .NET 10 的支持要求。当前发布、CI 和测试目标为 `win-x64`，其他架构尚未验收。
 

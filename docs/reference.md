@@ -16,7 +16,7 @@
 
 ```powershell
 wpk vscode
-wpk find "Visual Studio"
+wpk find "Visual Studio Code"   # 多词名称加引号
 wpk find Vendor.App --exact
 wpk ls --scope machine
 wpk where 7zip --exact
@@ -26,8 +26,8 @@ wpk update typora --dry-run     # 自动解析到完整包 ID，只预览
 wpk update typora               # 交互终端中，来源未知时确认一次
 wpk up Vendor.App --exact --via winget --dry-run
 wpk ls --json
-wpk find typora --verbose       # 显示完整实例 ID 和诊断
-wpk find -- ls                 # 查询名恰好为命令名时，显式使用 find
+wpk find typora -v              # -v/--verbose：完整实例 ID 和诊断
+wpk find -- ls                  # 查询名恰好为命令名时，显式使用 find
 ```
 
 搜索字段包括名称、原生包 ID、实例 ID，以及 Scoop manifest 中的命令别名。优先显示完整匹配、前缀和包含匹配；只有没有这些结果时才回退到子序列模糊匹配。`--exact` 仅接受完整名称或 ID，忽略大小写。多个模糊结果不会因为第一条得分更高而自动被选中。
@@ -39,12 +39,14 @@ wpk find -- ls                 # 查询名恰好为命令名时，显式使用 f
 | `-h`, `--help` | 中文帮助；支持 `wpk up --help` |
 | `--version` | 版本 |
 | `--json` | 版本化 JSON；升级时同时禁用管理器交互 |
-| `--verbose` | 列表显示完整实例 ID，详情显示原始证据，并展开完整诊断 |
+| `-v`, `--verbose` | 列表显示完整实例 ID，详情显示原始证据，并展开完整诊断 |
 | `--exact` | 精确匹配，适用于带查询的命令 |
 | `--scope user\|machine` | 按安装范围筛选；不用于更改或猜测范围 |
 | `--via scoop\|winget` | 显式选择已有识别关系的管理器，仅 `up` |
 | `--dry-run` | 返回决策、程序路径及参数，不弹出确认或启动升级，仅 `up` 及其别名 |
 | `--` | 后续内容全部作为查询文字 |
+
+命令名放在最前，选项可写在位置参数前后（例如 `wpk up app --dry-run` 或 `wpk up --dry-run app`）。多词软件名请加引号：`wpk find "Visual Studio Code"`。
 
 默认列表显示“软件、版本、范围、安装归属、管理器识别”，长实例 ID 放到详情和 `--verbose` 输出。窄终端自动改为逐项显示；源警告通常只给一条摘要，可通过 `doctor` 或 `--verbose` 查看详情。`NO_COLOR` 禁用颜色和动画；输出重定向时也不产生 ANSI 控制序列。
 
