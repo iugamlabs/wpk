@@ -19,15 +19,16 @@ A lightweight Windows CLI to find, locate, and upgrade installed apps. WPK bring
 
 ## Installation
 
-Download a **win-x64 single-file** build from [GitHub Releases](https://github.com/iugamlabs/wpk/releases):
+Download a **win-x64** build from [GitHub Releases](https://github.com/iugamlabs/wpk/releases):
 
 | Asset | Mode | Notes |
 | --- | --- | --- |
 | `wpk-{version}-win-x64.exe` | Framework-dependent | Needs [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); IL trim not available for FD |
-| `wpk-{version}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the runtime; usually the smallest download |
+| `wpk-{version}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the runtime; usually the simplest single-file install |
 | `wpk-{version}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
+| `wpk-{version}-win-x64-aot.zip` | Native AOT | Unzip `wpk.exe` and `Microsoft.Management.Deployment.dll` into the same folder; no .NET runtime required |
 
-Rename the file to `wpk.exe`, place it on your `PATH`, and verify with `wpk --version`. Checksums are in `SHA256SUMS.txt`.
+For `.exe` assets, rename to `wpk.exe`, place on your `PATH`, and verify with `wpk --version`. For `-aot.zip`, keep both extracted files together (WinGet inventory needs the DLL beside the exe). Checksums are in `SHA256SUMS.txt`.
 
 ## Usage
 

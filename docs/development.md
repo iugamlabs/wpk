@@ -44,9 +44,9 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifa
 .\artifacts\wpk-fd\wpk.exe --help
 ```
 
-发布目录里可能还有 README / docs；日常使用只需把对应的 `wpk.exe` 放到 PATH 中的目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
+发布目录里可能还有 README / docs。框架依赖 / 自包含 / R2R 的 single-file 可把 `wpk.exe` 放到 PATH。Native AOT 发布目录还会带上 `Microsoft.Management.Deployment.dll`（WinGet ComInterop 静态激活工厂），发版打成 zip 时需与 `wpk.exe` 保持同目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
 
-CLI 栈：ConsoleAppFramework 5（源生成解析）+ Spectre.Console（人类可读）+ `System.Text.Json` source generation（`--json`）。`Wpk.Core` / `Wpk.Cli` 已标 `IsAotCompatible`；完整 `PublishAot` 依赖 MSVC 平台链接器。Spectre.Console 与 WinGet ComInterop 在链接阶段仍可能出现 IL2104 类告警（已对 trimmed/AOT 发布抑制），运行时行为以本机 AOT 冒烟（`--help` / `doctor --json`）为准。正式 tag 发版产物目前仍是 single-file，AOT 产物可先本地验证后再接入流水线。
+CLI 栈：ConsoleAppFramework 5（源生成解析）+ Spectre.Console（人类可读）+ `System.Text.Json` source generation（`--json`）。`Wpk.Core` / `Wpk.Cli` 已标 `IsAotCompatible`；完整 `PublishAot` 依赖 MSVC 平台链接器（`windows-latest` 自带）。Spectre.Console 与 WinGet ComInterop 在链接阶段仍可能出现 IL2104 类告警（已对 trimmed/AOT 发布抑制），运行时行为以 AOT 冒烟（`--help` / `doctor --json`）为准。
 
 项目最低 Windows API 版本为 10.0.19041；框架依赖运行仍需满足 .NET 10 的支持要求。当前发布、CI 和测试目标为 `win-x64`，其他架构尚未验收。
 
@@ -60,14 +60,15 @@ Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：�
 
 程序版本由 **git tag** 决定（[MinVer](https://github.com/adamralph/minver)，前缀 `v`）。`Directory.Build.props` 只保留共享编译选项，不再手写版本号。未打 tag 的提交会得到带 `alpha` 高度后缀的开发版本（例如 `0.0.0-alpha.0.12`）；打在提交上的 `v1.0.0` 会使 `wpk --version` 输出 `1.0.0`。
 
-正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试，分别发布框架依赖 / 自包含（IL 裁剪）/ ReadyToRun（IL 裁剪）三种 single-file 可执行文件，校验各自 `--version` 与 tag 一致，生成：
+正式发版只接受符合 `vX.Y.Z` 的 tag。推送该 tag 会运行 `release` 工作流：跑测试，分别发布框架依赖 / 自包含（IL 裁剪）/ ReadyToRun（IL 裁剪）三种 single-file 可执行文件，以及 Native AOT zip，校验各自 `--version` 与 tag 一致，生成：
 
 - `wpk-{version}-win-x64.exe`（框架依赖；不能 `PublishTrimmed`）
 - `wpk-{version}-win-x64-sc.exe`（自包含 + 裁剪 + 单文件压缩）
 - `wpk-{version}-win-x64-r2r.exe`（自包含 + 裁剪 + ReadyToRun）
+- `wpk-{version}-win-x64-aot.zip`（Native AOT：`wpk.exe` + `Microsoft.Management.Deployment.dll`）
 - `SHA256SUMS.txt`
 
-并创建 GitHub Release。
+并创建 GitHub Release。CI（`build-and-test`）仍只冒烟框架依赖 single-file；四种产物仅在 tag 发版时全部构建。
 
 ```powershell
 git tag v1.0.0

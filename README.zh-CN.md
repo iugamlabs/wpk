@@ -19,15 +19,16 @@
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/iugamlabs/wpk/releases) 下载 **win-x64 single-file** 构建：
+从 [GitHub Releases](https://github.com/iugamlabs/wpk/releases) 下载 **win-x64** 构建：
 
 | 产物 | 模式 | 说明 |
 | --- | --- | --- |
 | `wpk-{version}-win-x64.exe` | 框架依赖 | 需要本机 [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)；FD 无法 IL 裁剪 |
-| `wpk-{version}-win-x64-sc.exe` | 自包含 + 裁剪 | 内嵌运行时；通常下载体积最小 |
+| `wpk-{version}-win-x64-sc.exe` | 自包含 + 裁剪 | 内嵌运行时；通常最省事的单文件安装 |
 | `wpk-{version}-win-x64-r2r.exe` | 自包含 + 裁剪 + ReadyToRun | 启动更快，体积大于 `-sc` |
+| `wpk-{version}-win-x64-aot.zip` | Native AOT | 解压后保持 `wpk.exe` 与 `Microsoft.Management.Deployment.dll` 同目录；无需 .NET 运行时 |
 
-将文件重命名为 `wpk.exe`，放到 `PATH` 中的目录，用 `wpk --version` 验证。校验和见 `SHA256SUMS.txt`。
+`.exe` 产物请重命名为 `wpk.exe` 并放到 `PATH`，用 `wpk --version` 验证。`-aot.zip` 解压后两个文件需放在同一目录（WinGet 清单依赖旁路 DLL）。校验和见 `SHA256SUMS.txt`。
 
 ## 使用
 
