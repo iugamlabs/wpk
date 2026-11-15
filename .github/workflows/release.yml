@@ -11,7 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 30
+    # AOT native link is slower than single-file publishes; keep headroom for four variants.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -75,15 +76,27 @@ jobs:
           -p:DebugType=none
           -p:DebugSymbols=false
 
+      # windows-latest includes VS MSVC for the Native AOT platform linker.
+      # WinGet ComInterop ships Microsoft.Management.Deployment.dll beside the AOT
+      # binary (static factory linkage); package both in a zip for a usable inventory.
+      - name: Publish Native AOT
+        run: >
+          dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
+          -o artifacts/publish/aot
+          -p:PublishAot=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+
       - name: Stage release binaries and SHA256
         id: meta
         shell: pwsh
         run: |
           $expected = '${{ steps.tag.outputs.version }}'
           $variants = @(
-            @{ Dir = 'fd';  Suffix = '' },
-            @{ Dir = 'sc';  Suffix = '-sc' },
-            @{ Dir = 'r2r'; Suffix = '-r2r' }
+            @{ Dir = 'fd';  Suffix = '';    Kind = 'exe' },
+            @{ Dir = 'sc';  Suffix = '-sc'; Kind = 'exe' },
+            @{ Dir = 'r2r'; Suffix = '-r2r'; Kind = 'exe' },
+            @{ Dir = 'aot'; Suffix = '-aot'; Kind = 'zip' }
           )
 
           $staged = [System.Collections.Generic.List[string]]::new()
@@ -97,11 +110,32 @@ jobs:
               throw "Published version mismatch ($($v.Dir)). Expected '$expected' from tag, got: $reported"
             }
 
-            $name = "wpk-$reported-win-x64$($v.Suffix).exe"
-            $dest = "artifacts/$name"
-            Copy-Item -Path $src -Destination $dest -Force
-            $staged.Add($name)
-            Write-Host "Staged $name ($([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB)"
+            if ($v.Kind -eq 'zip') {
+              $dll = "artifacts/publish/$($v.Dir)/Microsoft.Management.Deployment.dll"
+              if (-not (Test-Path $dll)) {
+                throw "Missing WinGet projection DLL for AOT package: $dll"
+              }
+
+              $stageDir = 'artifacts/stage-aot'
+              if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
+              New-Item -ItemType Directory -Path $stageDir | Out-Null
+              Copy-Item -Path $src -Destination (Join-Path $stageDir 'wpk.exe') -Force
+              Copy-Item -Path $dll -Destination (Join-Path $stageDir 'Microsoft.Management.Deployment.dll') -Force
+
+              $name = "wpk-$reported-win-x64$($v.Suffix).zip"
+              $dest = "artifacts/$name"
+              if (Test-Path $dest) { Remove-Item $dest -Force }
+              Compress-Archive -Path (Join-Path $stageDir '*') -DestinationPath $dest -Force
+              $staged.Add($name)
+              Write-Host "Staged $name ($([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB)"
+            }
+            else {
+              $name = "wpk-$reported-win-x64$($v.Suffix).exe"
+              $dest = "artifacts/$name"
+              Copy-Item -Path $src -Destination $dest -Force
+              $staged.Add($name)
+              Write-Host "Staged $name ($([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB)"
+            }
           }
 
           $sumsPath = 'artifacts/SHA256SUMS.txt'
@@ -124,6 +158,7 @@ jobs:
             artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64.exe
             artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64-sc.exe
             artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64-r2r.exe
+            artifacts/wpk-${{ steps.meta.outputs.version }}-win-x64-aot.zip
             artifacts/SHA256SUMS.txt
           retention-days: 30
 
@@ -135,18 +170,20 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           body: |
-            ### Downloads (win-x64 single-file)
+            ### Downloads (win-x64)
 
             | Asset | Mode | Notes |
             | --- | --- | --- |
             | `wpk-${{ steps.tag.outputs.version }}-win-x64.exe` | Framework-dependent | Requires [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); no IL trim (SDK limit) |
             | `wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the .NET runtime; single-file compression |
             | `wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
-            | `SHA256SUMS.txt` | Checksums | SHA-256 for each `.exe` |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-aot.zip` | Native AOT | Native binary + `Microsoft.Management.Deployment.dll` (keep both together); no .NET runtime required |
+            | `SHA256SUMS.txt` | Checksums | SHA-256 for each downloadable asset |
 
-            Native AOT is not published yet (Spectre.Console.Cli and JSON serialization are not AOT-ready).
+            Prefer `-sc` for a simple single-file install. Use `-aot` when you want native startup/size and can unzip two files into the same folder.
           files: |
             artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64.exe
             artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe
             artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe
+            artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-aot.zip
             artifacts/SHA256SUMS.txt
