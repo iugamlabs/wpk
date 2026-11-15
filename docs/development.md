@@ -9,7 +9,7 @@
 开发需要 Windows x64、.NET 10 SDK，以及首次还原依赖时的 NuGet 网络连接。发布目录运行需要 .NET 10 Runtime。WinGet 和 Scoop 都是可选来源：缺少其中一个时，其他来源继续工作。
 
 ```powershell
-dotnet restore Wpk.slnx --locked-mode
+dotnet restore Wpk.slnx
 dotnet build Wpk.slnx --no-restore
 dotnet test Wpk.slnx --no-restore
 

@@ -28,7 +28,7 @@ tests/Wpk.Tests  xUnit 测试，使用临时安装目录、注册表快照和系
 
 `IInventorySource` 返回观察记录、诊断和完整性；`IUpgradeAdapter` 构造命令；`IProcessRunner` 管理独立参数、输出、超时与取消；`IDirectoryOpener` 负责打开目录。`ICliRenderer` 和 `IUserInteraction` 分别负责展示与选择/确认，可注入测试替身。添加新管理器时增加来源及升级适配器，复用现有实例、搜索和决策流程。
 
-运行时依赖为微软官方 WinGet ComInterop、Spectre.Console（人类可读输出）和 ConsoleAppFramework 5（参数解析与命令路由，源生成、面向 Native AOT）。`--json` 等机器可读输出使用 `System.Text.Json` source generation。入口仅保留产品级快捷路由 `wpk <name>` → `query`；命令须在前，选项遵循 CAF 惯例（`-v|--verbose`、`--version` 分离）。不额外引入 DI 容器、数据库、常驻服务或持久清单缓存。NuGet 依赖通过各项目的 `packages.lock.json` 锁定。
+运行时依赖为微软官方 WinGet ComInterop、Spectre.Console（人类可读输出）和 ConsoleAppFramework 5（参数解析与命令路由，源生成、面向 Native AOT）。`--json` 等机器可读输出使用 `System.Text.Json` source generation。入口仅保留产品级快捷路由 `wpk <name>` → `query`；命令须在前，选项遵循 CAF 惯例（`-v|--verbose`、`--version` 分离）。不额外引入 DI 容器、数据库、常驻服务或持久清单缓存。直接 NuGet 依赖版本写在各项目的 `PackageReference` 中，由 Dependabot 每周检查更新。
 
 ## 参考资料
 

@@ -26,10 +26,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
           cache: true
-          cache-dependency-path: '**/packages.lock.json'
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
 
-      - name: Restore locked dependencies
-        run: dotnet restore Wpk.slnx --locked-mode
+      - name: Restore dependencies
+        run: dotnet restore Wpk.slnx
 
       - name: Release tests
         run: dotnet test Wpk.slnx -c Release --no-restore --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
