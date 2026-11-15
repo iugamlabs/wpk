@@ -19,7 +19,7 @@ public sealed class CliTests
         Assert.Equal(ExitCodes.Usage, await Create().App.RunAsync([.. args, "--json"]));
 
     [Fact]
-    public async Task ParserHandlesMultiwordQueriesAndOptionTerminator()
+    public async Task ParserHandlesQuotedNamesOptionOrderAndTerminator()
     {
         CliOptions? parsed = null;
         async Task<CliOptions> Parse(params string[] args)
@@ -27,7 +27,8 @@ public sealed class CliTests
             await CommandLine.InvokeAsync(args, (options, _) => { parsed = options; return Task.FromResult(0); }, default);
             return parsed!;
         }
-        Assert.Equal("Visual Studio Code", (await Parse("find", "Visual", "Studio", "Code")).Query);
+        Assert.Equal("Visual Studio Code", (await Parse("find", "Visual Studio Code")).Query);
+        Assert.True((await Parse("up", "app", "--dry-run")).DryRun);
         Assert.Equal("--literal", (await Parse("find", "--", "--literal")).Query);
         Assert.Equal("query", (await Parse("app")).Command);
         Assert.False((await CommandLine.InvokeAsync([], (_, _) => Task.FromResult(0), default)).Executed);

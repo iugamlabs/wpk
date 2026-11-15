@@ -153,36 +153,33 @@ public sealed class PresentationTests
     }
 
     [Fact]
-    public async Task OptionsBeforeCommandsAndLiteralFlagsRetainTheirMeaning()
+    public async Task CommandFirstOptionsAndEscapedLiteralsFollowCafConventions()
     {
         CliOptions? parsed = null;
         Task<int> Capture(CliOptions options, CancellationToken _) { parsed = options; return Task.FromResult(0); }
-        await CommandLine.InvokeAsync(["--json", "--scope", "user", "update", "Typora"], Capture, default);
+        await CommandLine.InvokeAsync(["update", "--json", "--scope", "user", "Typora"], Capture, default);
         Assert.Equal("up", parsed!.Command); Assert.True(parsed.Json); Assert.Equal(InstallScope.User, parsed.Scope);
         await CommandLine.InvokeAsync(["find", "before", "--", "--json", "--help"], Capture, default);
         Assert.Equal("before --json --help", parsed!.Query); Assert.False(parsed.Json);
     }
 
     [Fact]
-    public async Task RepeatedBooleanFlagsFollowFrameworkIdempotentSemantics()
+    public async Task VersionFlagUsesTheVersionJsonField()
     {
         var output = new StringWriter();
         var app = new CliApplication(new FakeInventory(Fixtures.Snapshot()), [], new FakeRunner(), new FakeOpener(), output, new StringWriter());
-        Assert.Equal(0, await app.RunAsync(["ls", "--json", "--json"]));
-        using var document = JsonDocument.Parse(output.ToString());
-        Assert.Equal(0, document.RootElement.GetProperty("exitCode").GetInt32());
-    }
-
-    [Theory]
-    [InlineData("-v")]
-    [InlineData("--version")]
-    public async Task BothFrameworkVersionFlagsUseTheVersionJsonField(string flag)
-    {
-        var output = new StringWriter();
-        var app = new CliApplication(new FakeInventory(Fixtures.Snapshot()), [], new FakeRunner(), new FakeOpener(), output, new StringWriter());
-        Assert.Equal(0, await app.RunAsync([flag, "--json"]));
+        Assert.Equal(0, await app.RunAsync(["--version", "--json"]));
         using var json = JsonDocument.Parse(output.ToString());
         Assert.Equal(CommandLine.Version, json.RootElement.GetProperty("data").GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ShortVerboseFlagIsVerboseNotVersion()
+    {
+        CliOptions? parsed = null;
+        await CommandLine.InvokeAsync(["ls", "-v"], (options, _) => { parsed = options; return Task.FromResult(0); }, default);
+        Assert.Equal("ls", parsed!.Command);
+        Assert.True(parsed.Verbose);
     }
 
     private static UpgradePreview Preview()
