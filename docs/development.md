@@ -44,7 +44,7 @@ dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true -o artifa
 .\artifacts\wpk-fd\wpk.exe --help
 ```
 
-发布目录里可能还有 README / docs。框架依赖 / 自包含 / R2R 的 single-file 可把 `wpk.exe` 放到 PATH。Native AOT 发布目录还会带上 `Microsoft.Management.Deployment.dll`（WinGet ComInterop 静态激活工厂），发版打成 zip 时需与 `wpk.exe` 保持同目录。框架依赖版仍需要本机 .NET 10 Runtime。不需要安装后台服务。
+框架依赖 / 自包含 / R2R 的 single-file 可把 `wpk.exe` 放到 PATH。要采集 WinGet 清单，需将同版本 AOT 包里的 `Microsoft.Management.Deployment.winmd` 放在 EXE 同目录。Native AOT 发布会同时复制 NuGet 包提供的 `Microsoft.Management.Deployment.dll`（WinGet 激活工厂）和 `Microsoft.Management.Deployment.winmd`（WinRT 元数据）。打包和解压时都将三个文件保持在同一目录。框架依赖版需要本机 .NET 10 Runtime。
 
 CLI 栈：ConsoleAppFramework 5（源生成解析）+ Spectre.Console（人类可读）+ `System.Text.Json` source generation（`--json`）。`Wpk.Core` / `Wpk.Cli` 已标 `IsAotCompatible`；完整 `PublishAot` 依赖 MSVC 平台链接器（`windows-latest` 自带）。Spectre.Console 与 WinGet ComInterop 在链接阶段仍可能出现 IL2104 类告警（已对 trimmed/AOT 发布抑制），运行时行为以 AOT 冒烟（`--help` / `doctor --json`）为准。
 
@@ -65,7 +65,7 @@ Windows CI（`build-and-test`）在分支 push、PR 和手动触发时运行：�
 - `wpk-{version}-win-x64.exe`（框架依赖；不能 `PublishTrimmed`）
 - `wpk-{version}-win-x64-sc.exe`（自包含 + 裁剪 + 单文件压缩）
 - `wpk-{version}-win-x64-r2r.exe`（自包含 + 裁剪 + ReadyToRun）
-- `wpk-{version}-win-x64-aot.zip`（Native AOT：`wpk.exe` + `Microsoft.Management.Deployment.dll`）
+- `wpk-{version}-win-x64-aot.zip`（内含 `wpk.exe`、`Microsoft.Management.Deployment.dll` 和 `Microsoft.Management.Deployment.winmd`）
 - `SHA256SUMS.txt`
 
 并创建 GitHub Release。CI（`build-and-test`）仍只冒烟框架依赖 single-file；四种产物仅在 tag 发版时全部构建。

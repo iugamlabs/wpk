@@ -38,9 +38,9 @@ Download a **win-x64** build from [GitHub Releases](https://github.com/iugamlabs
 | `wpk-{version}-win-x64.exe` | Framework-dependent | Needs [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); IL trim not available for FD |
 | `wpk-{version}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the runtime; usually the simplest single-file install |
 | `wpk-{version}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
-| `wpk-{version}-win-x64-aot.zip` | Native AOT | Unzip `wpk.exe` and `Microsoft.Management.Deployment.dll` into the same folder; no .NET runtime required |
+| `wpk-{version}-win-x64-aot.zip` | Native AOT | Includes the WinGet DLL and WinMD. Extract all three files into the same folder. No .NET runtime required. |
 
-For `.exe` assets, rename to `wpk.exe`, place on your `PATH`, and verify with `wpk --version`. For `-aot.zip`, keep both extracted files together (WinGet inventory needs the DLL beside the exe). Checksums are in `SHA256SUMS.txt`.
+For `.exe` assets, rename to `wpk.exe` and place on your `PATH`. To enable WinGet inventory, copy `Microsoft.Management.Deployment.winmd` from the matching AOT ZIP next to the executable. Verify the installation with `wpk --version`. Checksums are in `SHA256SUMS.txt`.
 
 ## Usage
 
