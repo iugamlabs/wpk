@@ -5,7 +5,7 @@ using Wpk.Core;
 namespace Wpk.Cli;
 
 public sealed record CliOptions(string Command, string? Query, bool Json, bool Exact,
-    InstallScope? Scope, PackageManagerKind? Via, bool DryRun, bool Verbose = false);
+    InstallScope? Scope, PackageManagerKind? Via, bool DryRun, bool Verbose = false, bool All = false);
 
 public sealed record CommandRunResult(int ExitCode, string Text, bool Executed, bool Version);
 
@@ -171,18 +171,20 @@ internal sealed class WpkCommands
         [Argument] string? name = null) =>
         Lookup("open", name, exact, scope, context, cancellationToken);
 
-    /// <summary>汇总已安装软件</summary>
+    /// <summary>按安装归属列出已安装软件，默认隐藏归属未知的实例</summary>
     /// <param name="scope">安装范围：user 或 machine</param>
+    /// <param name="all">-a, 显示全部安装实例，包括归属未知的实例</param>
     [Command("ls")]
     public Task<int> List(
         ConsoleAppContext context,
         CancellationToken cancellationToken,
-        string? scope = null)
+        string? scope = null,
+        bool all = false)
     {
         RejectExtras("ls", context);
         var flags = Flags(context);
         return CommandGate.RequireDispatch().ExecuteAsync(
-            new("ls", null, flags.Json, false, ParseScope(scope), null, false, flags.Verbose),
+            new("ls", null, flags.Json, false, ParseScope(scope), null, false, flags.Verbose, All: all),
             cancellationToken);
     }
 

@@ -97,13 +97,13 @@ public sealed class CliApplication
             var exit = snapshot.Partial || report.Checks.Any(c => c.Status is "warning" or "error") ? ExitCodes.Unavailable : 0;
             return Emit(options, exit, report, snapshot.Diagnostics, snapshot.Partial, () => renderer.Doctor(report));
         }
-        var matches = options.Command == "ls" ? snapshot.Instances.Where(i => options.Scope is null || i.Scope == options.Scope)
-            .Select(i => new SearchMatch(i, 0, MatchKind.None)).ToArray()
-            : SearchService.Find(snapshot.Instances, options.Query!, options.Exact, options.Scope).ToArray();
-        if (options.Command is "ls" or "query" or "find")
+        if (options.Command == "ls") return ListInstalled(options, snapshot);
+
+        var matches = SearchService.Find(snapshot.Instances, options.Query!, options.Exact, options.Scope).ToArray();
+        if (options.Command is "query" or "find")
         {
             var instances = matches.Select(m => m.Instance).ToArray();
-            return Emit(options, instances.Length == 0 && options.Command != "ls" ? ExitCodes.NotFound : 0,
+            return Emit(options, instances.Length == 0 ? ExitCodes.NotFound : 0,
                 instances.Select(InstanceOutput.From).ToArray(), snapshot.Diagnostics, snapshot.Partial, () =>
                 {
                     if (instances.Length == 0) renderer.Message("未找到匹配的软件。");
@@ -215,6 +215,29 @@ public sealed class CliApplication
             $"管理器未成功完成；原始退出码：{result.ExitCode?.ToString() ?? "未知"}。", DiagnosticSeverity.Error));
         return Emit(options, exit, new UpgradePayload(instance.Id, rechecked, command, false, Process: result),
             diagnostics, fresh.Partial, () => renderer.Message(exit == 0 ? "管理器执行完成。" : "请检查管理器输出。"));
+    }
+
+    private int ListInstalled(CliOptions options, InventorySnapshot snapshot)
+    {
+        var scoped = snapshot.Instances.Where(i => options.Scope is null || i.Scope == options.Scope).ToArray();
+        var instances = scoped.Where(i => options.All || i.Owners.Count > 0)
+            .OrderBy(i => i.Owners.Count == 0)
+            .ThenBy(Output.Owner, StringComparer.Ordinal)
+            .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(i => i.Id, StringComparer.Ordinal)
+            .ToArray();
+        var hidden = scoped.Length - instances.Length;
+        var hint = $"已隐藏 {hidden} 个安装归属未知的软件实例。使用 --all 或 -a 显示这些实例。";
+        var diagnostics = options.Json && hidden > 0
+            ? snapshot.Diagnostics.Append(new Diagnostic("cli", "unknownOwnershipHidden", hint, DiagnosticSeverity.Info)).ToArray()
+            : snapshot.Diagnostics;
+
+        return Emit(options, ExitCodes.Success, instances.Select(InstanceOutput.From).ToArray(), diagnostics, snapshot.Partial, () =>
+        {
+            if (instances.Length > 0) renderer.List(instances, options.Verbose);
+            else if (hidden == 0) renderer.Message("未找到匹配的软件。");
+            if (hidden > 0) renderer.Message(hint);
+        });
     }
 
     private static UpgradeDecision Plan(SoftwareInstance instance, PackageManagerKind? via, InventorySnapshot snapshot)

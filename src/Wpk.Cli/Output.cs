@@ -44,7 +44,7 @@ public static class Output
     public static string Scope(InstallScope scope) => scope switch
     { InstallScope.User => "user", InstallScope.Machine => "machine", _ => "unknown" };
     public static string Owner(SoftwareInstance i) => i.Owners.Count == 0 ? "未知"
-        : string.Join(',', i.Owners.Select(o => o.ToString().ToLowerInvariant()));
+        : string.Join(',', i.Owners.Order().Select(o => o.ToString().ToLowerInvariant()));
 
     public static string SerializeEnvelope(int exit, object? data, IReadOnlyList<Diagnostic> diagnostics, bool partial)
     {
