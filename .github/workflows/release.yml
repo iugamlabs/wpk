@@ -79,8 +79,7 @@ jobs:
           -p:DebugSymbols=false
 
       # windows-latest includes VS MSVC for the Native AOT platform linker.
-      # WinGet ComInterop ships Microsoft.Management.Deployment.dll beside the AOT
-      # binary (static factory linkage); package both in a zip for a usable inventory.
+      # Package the Native AOT binary with the WinGet activation DLL and WinRT metadata.
       - name: Publish Native AOT
         run: >
           dotnet publish src/Wpk.Cli -c Release -r win-x64 --self-contained true
@@ -113,16 +112,17 @@ jobs:
             }
 
             if ($v.Kind -eq 'zip') {
-              $dll = "artifacts/publish/$($v.Dir)/Microsoft.Management.Deployment.dll"
-              if (-not (Test-Path $dll)) {
-                throw "Missing WinGet projection DLL for AOT package: $dll"
-              }
-
               $stageDir = 'artifacts/stage-aot'
               if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
               New-Item -ItemType Directory -Path $stageDir | Out-Null
               Copy-Item -Path $src -Destination (Join-Path $stageDir 'wpk.exe') -Force
-              Copy-Item -Path $dll -Destination (Join-Path $stageDir 'Microsoft.Management.Deployment.dll') -Force
+              foreach ($file in 'Microsoft.Management.Deployment.dll', 'Microsoft.Management.Deployment.winmd') {
+                $dependency = Join-Path (Split-Path $src) $file
+                if (-not (Test-Path -LiteralPath $dependency -PathType Leaf)) {
+                  throw "Missing WinGet dependency for AOT package: $dependency"
+                }
+                Copy-Item -LiteralPath $dependency -Destination $stageDir
+              }
 
               $name = "wpk-$reported-win-x64$($v.Suffix).zip"
               $dest = "artifacts/$name"
@@ -179,10 +179,10 @@ jobs:
             | `wpk-${{ steps.tag.outputs.version }}-win-x64.exe` | Framework-dependent | Requires [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0); no IL trim (SDK limit) |
             | `wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe` | Self-contained + trimmed | Bundles the .NET runtime; single-file compression |
             | `wpk-${{ steps.tag.outputs.version }}-win-x64-r2r.exe` | Self-contained + trimmed + ReadyToRun | Faster startup; larger than `-sc` |
-            | `wpk-${{ steps.tag.outputs.version }}-win-x64-aot.zip` | Native AOT | Native binary + `Microsoft.Management.Deployment.dll` (keep both together); no .NET runtime required |
+            | `wpk-${{ steps.tag.outputs.version }}-win-x64-aot.zip` | Native AOT | Native binary with the WinGet DLL and WinMD; extract all three files together. No .NET runtime required. |
             | `SHA256SUMS.txt` | Checksums | SHA-256 for each downloadable asset |
 
-            Prefer `-sc` for a simple single-file install. Use `-aot` when you want native startup/size and can unzip two files into the same folder.
+            The AOT ZIP includes the files needed to collect WinGet inventory. For the single-file builds, place `Microsoft.Management.Deployment.winmd` from the AOT ZIP beside the executable to enable WinGet inventory.
           files: |
             artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64.exe
             artifacts/wpk-${{ steps.tag.outputs.version }}-win-x64-sc.exe
