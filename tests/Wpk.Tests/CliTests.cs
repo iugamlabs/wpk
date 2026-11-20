@@ -15,6 +15,7 @@ public sealed class CliTests
     [InlineData("find")]
     [InlineData("doctor", "--scope", "user")]
     [InlineData("ls", "--unknown")]
+    [InlineData("find", "app", "--all")]
     public async Task InvalidArgumentsAreRejected(params string[] args) =>
         Assert.Equal(ExitCodes.Usage, await Create().App.RunAsync([.. args, "--json"]));
 
@@ -160,10 +161,52 @@ public sealed class CliTests
         var snapshot = Fixtures.Snapshot(Fixtures.Instance(Fixtures.Record())) with
         { Partial = true, Diagnostics = [new("winget", "apiUnavailable", "unavailable")] };
         var c = Create(snapshot);
-        Assert.Equal(0, await c.App.RunAsync(["ls", "--json"]));
+        Assert.Equal(0, await c.App.RunAsync(["ls", "--all", "--json"]));
         using var json = JsonDocument.Parse(c.Output.ToString());
         Assert.True(json.RootElement.GetProperty("partial").GetBoolean());
         Assert.Single(json.RootElement.GetProperty("data").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("--all")]
+    [InlineData("-a")]
+    public async Task ListSortsByOwnershipAndNameAndDefaultsToKnownOwners(string? allFlag)
+    {
+        var snapshot = Fixtures.Snapshot(
+            Fixtures.Instance(Fixtures.Winget() with { Name = "Unknown App" }),
+            Fixtures.Instance(Fixtures.Scoop() with { Name = "Zulu App" }),
+            Fixtures.Instance(Fixtures.Winget("winget:owned") with { Name = "Alpha App", Owner = PackageManagerKind.WinGet }),
+            Fixtures.Instance(Fixtures.Scoop("scoop:two") with { Name = "Beta App" }),
+            Fixtures.Instance(Fixtures.Scoop("scoop:machine") with { Scope = InstallScope.Machine }));
+        var c = Create(snapshot);
+        string[] args = allFlag is null ? [] : [allFlag];
+        Assert.Equal(0, await c.App.RunAsync(["ls", "--scope", "user", .. args, "--json"]));
+
+        using var json = JsonDocument.Parse(c.Output.ToString());
+        string[] expected = allFlag is null ? ["Beta App", "Zulu App", "Alpha App"]
+            : ["Beta App", "Zulu App", "Alpha App", "Unknown App"];
+        Assert.Equal(expected, json.RootElement.GetProperty("data").EnumerateArray().Select(i => i.GetProperty("name").GetString()));
+        Assert.False(json.RootElement.GetProperty("partial").GetBoolean());
+        var diagnostics = json.RootElement.GetProperty("diagnostics").EnumerateArray();
+        if (allFlag is null)
+        {
+            var hint = Assert.Single(diagnostics);
+            Assert.Equal("unknownOwnershipHidden", hint.GetProperty("code").GetString());
+            Assert.Equal("info", hint.GetProperty("severity").GetString());
+        }
+        else Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task ListWithOnlyUnknownOwnersShowsHowToRevealThem()
+    {
+        var c = Create(Fixtures.Snapshot(Fixtures.Instance(Fixtures.Winget())));
+        Assert.Equal(0, await c.App.RunAsync(["ls", "--verbose"]));
+        var output = c.Output.ToString();
+        Assert.DoesNotContain("Example App", output);
+        Assert.Contains("已隐藏 1 个", output);
+        Assert.Contains("--all 或 -a", output);
     }
 
     [Fact]
