@@ -48,7 +48,7 @@ Scoop 安装 Windows x64 Native AOT 版。后续可用 `scoop update wpk` 升级
 | --- | --- |
 | `wpk <name>` | 显示软件详情或匹配的候选项 |
 | `wpk find <name>` | 搜索已安装软件 |
-| `wpk ls` | 列出已安装软件 |
+| `wpk ls` | 按安装归属列出已安装软件，加 `--all` 或 `-a` 可查看归属未知的实例 |
 | `wpk where <name>` | 输出安装目录 |
 | `wpk open <name>` | 用资源管理器打开安装目录 |
 | `wpk up <name>` | 委托合适的管理器升级；别名：`update`、`upgrade` |
@@ -58,7 +58,7 @@ Scoop 安装 Windows x64 Native AOT 版。后续可用 `scoop update wpk` 升级
 wpk find git
 wpk where 7zip --exact
 wpk up typora --dry-run
-wpk ls --json
+wpk ls --all --json
 wpk --help
 ```
 

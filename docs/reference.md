@@ -10,7 +10,7 @@
 | `wpk find <name>` | 搜索已安装记录；不搜索远程可安装软件目录 |
 | `wpk where <name>` | 输出唯一实例的已知且存在的安装目录 |
 | `wpk open <name>` | 用资源管理器打开唯一实例的安装目录 |
-| `wpk ls` | 汇总合并后的安装实例 |
+| `wpk ls` | 按安装归属列出实例，默认隐藏归属未知的实例 |
 | `wpk up <name>` | 按管理归属选择升级方式；别名为 `update`、`upgrade` |
 | `wpk doctor` | 检查环境、CLI、Scoop 根目录和各信息来源 |
 
@@ -25,7 +25,7 @@ wpk up 7zip --exact --dry-run
 wpk update typora --dry-run     # 自动解析到完整包 ID，只预览
 wpk update typora               # 交互终端中，来源未知时确认一次
 wpk up Vendor.App --exact --via winget --dry-run
-wpk ls --json
+wpk ls --all --json
 wpk find typora -v              # -v/--verbose：完整实例 ID 和诊断
 wpk find -- ls                  # 查询名恰好为命令名时，显式使用 find
 ```
@@ -42,6 +42,7 @@ wpk find -- ls                  # 查询名恰好为命令名时，显式使用 
 | `-v`, `--verbose` | 列表显示完整实例 ID，详情显示原始证据，并展开完整诊断 |
 | `--exact` | 精确匹配，适用于带查询的命令 |
 | `--scope user\|machine` | 按安装范围筛选；不用于更改或猜测范围 |
+| `-a`, `--all` | 显示归属未知的实例，仅用于 `ls`，可与 `--scope` 一起使用 |
 | `--via scoop\|winget` | 显式选择已有识别关系的管理器，仅 `up` |
 | `--dry-run` | 返回决策、程序路径及参数，不弹出确认或启动升级，仅 `up` 及其别名 |
 | `--` | 后续内容全部作为查询文字 |
@@ -49,6 +50,8 @@ wpk find -- ls                  # 查询名恰好为命令名时，显式使用 
 命令名放在最前，选项可写在位置参数前后（例如 `wpk up app --dry-run` 或 `wpk up --dry-run app`）。多词软件名请加引号：`wpk find "Visual Studio Code"`。
 
 默认列表显示“软件、版本、范围、安装归属、管理器识别”，长实例 ID 放到详情和 `--verbose` 输出。窄终端自动改为逐项显示；源警告通常只给一条摘要，可通过 `doctor` 或 `--verbose` 查看详情。`NO_COLOR` 禁用颜色和动画；输出重定向时也不产生 ANSI 控制序列。
+
+`wpk ls` 按安装归属排序，同一归属内按软件名称排序。有未知归属的实例被隐藏时，会提示隐藏数量和查看方式。使用 `wpk ls --all` 或 `wpk ls -a` 时，未知项排在末尾。
 
 `where`、`open`、`up` 都要求明确的安装实例。交互终端中，多个结果会显示选择列表，包含版本、范围、归属和目录；第一项为“取消”。非交互环境或 dry-run 遇到多个候选时，返回歧义并列出完整 ID，例如 `wpk where registry:0123456789abcdef0123 --exact`。这是示例 ID，实际值由本机安装身份生成。合并前任意一条观察记录的 ID 也可用于精确选择。
 
@@ -84,6 +87,7 @@ Scoop 的 held/pinned 包、WinGet 的版本比较和更新可用性均交给管
 ```
 
 - `ls`、`find` 和默认查询的 `data` 均为实例数组，包含 `id`、名称、范围、`owners`、目录、原始记录及合并依据。
+- `ls --json` 同样默认隐藏未知归属。隐藏数量通过 `diagnostics` 中的 `unknownOwnershipHidden` 提示返回。脚本可用 `ls --all --json` 获取包含未知归属的清单，并检查 `partial` 确认采集是否完整。
 - `where` / `open` 成功返回 `instanceId`、`directory`、`opened`。
 - `up` 返回 `decision`；允许时包含 `command.fileName`、独立的 `command.arguments` 和 `dryRun`，实际执行还包含 `process.exitCode`、`standardOutput`、`standardError`、超时及取消状态。
 - 升级预览额外包含 `confirmationRequired`。其为 true 时，`decision.allowed=false`、`decision.code="confirmationRequired"`，同时仍提供目标及命令；退出码 0 表示预览成功，不代表已授权或执行。实际 JSON 升级需要显式 `--via` 等条件满足。
@@ -91,7 +95,7 @@ Scoop 的 held/pinned 包、WinGet 的版本比较和更新可用性均交给管
 - 只读查询可以在 `partial=true` 时成功返回已采集结果；脚本需要完整清单时必须同时检查该字段。`doctor` 在发现来源不可用或环境问题时返回 5。
 
 ```powershell
-$result = wpk ls --json | ConvertFrom-Json
+$result = wpk ls --all --json | ConvertFrom-Json
 if ($result.partial) { $result.diagnostics | Format-Table source, code, message }
 $result.data | Select-Object id, name, version, scope
 ```

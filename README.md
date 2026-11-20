@@ -48,7 +48,7 @@ For `.exe` assets, rename to `wpk.exe` and place on your `PATH`. To enable WinGe
 | --- | --- |
 | `wpk <name>` | Show app details or matching candidates |
 | `wpk find <name>` | Search installed apps |
-| `wpk ls` | List installed apps |
+| `wpk ls` | List installed apps by owner. Use `--all` or `-a` to include unknown owners. |
 | `wpk where <name>` | Print the installation folder |
 | `wpk open <name>` | Open the installation folder in File Explorer |
 | `wpk up <name>` | Upgrade with the appropriate manager; aliases: `update`, `upgrade` |
@@ -58,7 +58,7 @@ For `.exe` assets, rename to `wpk.exe` and place on your `PATH`. To enable WinGe
 wpk find git
 wpk where 7zip --exact
 wpk up typora --dry-run
-wpk ls --json
+wpk ls --all --json
 wpk --help
 ```
 
