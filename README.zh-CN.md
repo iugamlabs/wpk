@@ -13,11 +13,23 @@
 
 ## 运行要求
 
-- Windows x64 和 .NET 10 Runtime；其他架构尚未验收。
+- Windows x64。框架依赖版需要 .NET 10 Runtime。
 - Scoop 和 WinGet 均为可选项，缺少其中一个时，其他可用来源仍可工作。
 - CLI 帮助和面向用户的输出目前为中文。
 
 ## 安装
+
+### Scoop
+
+```powershell
+scoop bucket add iugamlabs https://github.com/iugamlabs/scoop
+scoop install wpk
+wpk --version
+```
+
+Scoop 安装 Windows x64 Native AOT 版。后续可用 `scoop update wpk` 升级。
+
+### 手动下载
 
 从 [GitHub Releases](https://github.com/iugamlabs/wpk/releases) 下载 **win-x64** 构建：
 

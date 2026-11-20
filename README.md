@@ -13,11 +13,23 @@ A lightweight Windows CLI to find, locate, and upgrade installed apps. WPK bring
 
 ## Requirements
 
-- Windows x64 with .NET 10 Runtime; other architectures have not been validated.
+- Windows x64. The framework-dependent download requires the .NET 10 Runtime.
 - Scoop and WinGet are optional. Available sources continue to work if either is missing.
 - CLI help and human-readable output are currently in Chinese.
 
 ## Installation
+
+### Scoop
+
+```powershell
+scoop bucket add iugamlabs https://github.com/iugamlabs/scoop
+scoop install wpk
+wpk --version
+```
+
+Scoop installs the Windows x64 Native AOT build. Run `scoop update wpk` to upgrade it.
+
+### Manual download
 
 Download a **win-x64** build from [GitHub Releases](https://github.com/iugamlabs/wpk/releases):
 
